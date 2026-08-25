@@ -4,13 +4,15 @@ import Meyer.Spec
 # Basic API for Meyer's specification
 
 Lemmas about the definitions in `Meyer.Spec` that are not themselves claims of
-the paper.  `Meyer.Facts` uses them to establish Meyer's two assertions about the
-specification.
+the paper.  `Meyer.Retention` and `Meyer.Facts` use them to establish Meyer's
+assertions about the specification.
 
 The main content is a workable interface to `maxLineLength`, which is defined as
 a supremum over a set and so needs its nonemptiness and boundedness discharged
 before anything can be said about it, plus a reformulation
-(`maxLineLength_le_of_tails`) under which concrete cases fall to `decide`.
+(`maxLineLength_le_of_tails`) under which concrete cases fall to `decide`.  The
+module ends with the two halves of Meyer's remark that `TRIMMED (b)` is nonempty
+exactly when `b` has no oversize word.
 -/
 
 namespace Meyer
@@ -36,21 +38,19 @@ instance (b s : Text) : Decidable (s ∈ Equivalent b) :=
 /-! ## Infixes -/
 
 /-- Every infix is a prefix of a suffix, so quantifying over the infixes of a
-concrete list is a bounded — and therefore decidable — quantification. -/
+concrete list is a bounded, and therefore decidable, quantification. -/
 private lemma infix_iff_mem_tails_inits {α : Type*} (t s : List α) :
     t.IsInfix s ↔ ∃ u ∈ s.tails, t ∈ u.inits := by
-  rw [List.infix_iff_prefix_suffix]
-  constructor
-  · rintro ⟨u, hpre, hsuf⟩
-    exact ⟨u, (List.mem_tails u s).2 hsuf, (List.mem_inits t u).2 hpre⟩
-  · rintro ⟨u, hu, ht⟩
-    exact ⟨u, (List.mem_inits t u).1 ht, (List.mem_tails u s).1 hu⟩
+  simp only [List.infix_iff_prefix_suffix, List.mem_tails, List.mem_inits]
+  exact exists_congr fun _ => and_comm
 
 /-! ## `maxLineLength` -/
 
 /-- The set `maxLineLength` takes the supremum of.  Naming it lets its
 nonemptiness and boundedness be discharged once, below, instead of at every
-use. -/
+use.  Meyer takes visible care over exactly this point (the box "The reasoning
+behind formal specifications"): his `LINE_LENGTHS` is arranged so that it always
+contains `0`, "even if `s` is an empty sequence". -/
 private def lineLengths (s : Text) : Set ℕ :=
   {n | ∃ t : Text, t.IsInfix s ∧ newline ∉ t ∧ t.length = n}
 
@@ -82,8 +82,7 @@ can discharge it. -/
 lemma maxLineLength_le_of_tails {s : Text} {N : ℕ}
     (h : ∀ u ∈ s.tails, ∀ t ∈ u.inits, newline ∉ t → t.length ≤ N) :
     maxLineLength s ≤ N := by
-  refine maxLineLength_le ?_
-  intro t ht hn
+  refine maxLineLength_le fun t ht hn => ?_
   obtain ⟨u, hu, htu⟩ := (infix_iff_mem_tails_inits t s).1 ht
   exact h u hu t htu hn
 
@@ -111,11 +110,32 @@ lemma length_eq_of_mem_compacted {a b : Text} (h : NoDoubleBreak a)
 lemma mem_compacted_self {a : Text} (h : NoDoubleBreak a) : a ∈ Compacted a :=
   ⟨mem_singleBreaks_self h, fun _ hy => hy.1.length_le⟩
 
-/-- When `a` itself has single breaks, `COMPACTED (a)` is exactly `{a}`: any
-member is a sublist of `a` of the same length, hence `a`. -/
-lemma eq_of_mem_compacted {a b : Text} (h : NoDoubleBreak a) (hb : b ∈ Compacted a) :
-    b = a :=
-  hb.1.1.eq_of_length (length_eq_of_mem_compacted h hb)
+/-! ## Words
+
+A *word*, in Meyer's sense, is a "contiguous subsequence of non-break
+characters".  `NoOversizeWord` is a bound on the length of the words of a text,
+and the results below are more easily stated in those terms than in Meyer's. -/
+
+/-- A text containing no break character: one of Meyer's *words*. -/
+def BreakFree (t : Text) : Prop := ∀ c ∈ t, ¬ IsBreak c
+
+/-- `NoOversizeWord` says exactly that no word is longer than `MAXPOS`.  Meyer's
+phrasing quantifies over stretches of the single length `MAXPOS + 1`; the two
+agree because any longer word has a word of that length inside it. -/
+lemma mem_noOversizeWord_iff (MAXPOS : ℕ) (s : Text) :
+    s ∈ NoOversizeWord MAXPOS ↔
+      ∀ t : Text, t.IsInfix s → BreakFree t → t.length ≤ MAXPOS := by
+  constructor
+  · intro h t ht hbf
+    by_contra hcon
+    obtain ⟨c, hc, hbc⟩ :=
+      h (t.take (MAXPOS + 1)) ((List.take_prefix _ t).isInfix.trans ht)
+        (by rw [List.length_take]; omega)
+    exact hbf c (List.mem_of_mem_take hc) hbc
+  · intro h t ht hlen
+    by_contra hcon
+    have := h t ht fun c hcm hbk => hcon ⟨c, hcm, hbk⟩
+    omega
 
 /-! ## `EQUIVALENT` -/
 
@@ -137,11 +157,11 @@ private lemma forall₂_split {α β : Type*} {R : α → β → Prop} {o : List
       obtain ⟨o₁, o₂, rfl, h₁, h₂⟩ := ih hrest
       exact ⟨_ :: o₁, o₂, rfl, List.Forall₂.cons hab h₁, h₂⟩
 
-/-- Over a stretch containing no break characters, an equivalent text is not
-merely equivalent but equal: break substitution has nothing to act on. -/
-private lemma eq_of_forall₂_of_noBreak {t' t : Text}
+/-- Over a word, an equivalent text is not merely equivalent but equal: break
+substitution has nothing to act on. -/
+private lemma eq_of_forall₂_of_breakFree {t' t : Text}
     (h : List.Forall₂ (fun x y => x = y ∨ (IsBreak x ∧ IsBreak y)) t' t)
-    (hb : ∀ c ∈ t, ¬ IsBreak c) : t' = t := by
+    (hb : BreakFree t) : t' = t := by
   induction h with
   | nil => rfl
   | @cons x y l₁ l₂ hxy _ ih =>
@@ -149,14 +169,14 @@ private lemma eq_of_forall₂_of_noBreak {t' t : Text}
     have hx : x = y := hxy.resolve_right fun hcon => hy hcon.2
     rw [hx, ih fun c hc => hb c (List.mem_cons_of_mem _ hc)]
 
-/-- A break-free stretch of `b` survives into anything equivalent to `b`. -/
-lemma infix_of_mem_equivalent {b o t : Text} (ho : o ∈ Equivalent b)
-    (ht : t.IsInfix b) (hb : ∀ c ∈ t, ¬ IsBreak c) : t.IsInfix o := by
+/-- A word of `b` survives into anything equivalent to `b`. -/
+private lemma infix_of_mem_equivalent {b o t : Text} (ho : o ∈ Equivalent b)
+    (ht : t.IsInfix b) (hb : BreakFree t) : t.IsInfix o := by
   obtain ⟨l, r, rfl⟩ := ht
   -- `++` is left-associative, so peel `r` off first, then `t`.
   obtain ⟨o₁, o₄, rfl, h₁, -⟩ := forall₂_split ho
   obtain ⟨o₂, o₃, rfl, -, h₃⟩ := forall₂_split h₁
-  exact ⟨o₂, o₄, by rw [eq_of_forall₂_of_noBreak h₃ hb]⟩
+  exact ⟨o₂, o₄, by rw [eq_of_forall₂_of_breakFree h₃ hb]⟩
 
 /-! ## Nonemptiness of the extremal sets -/
 
@@ -174,9 +194,11 @@ private lemma maxSet_nonempty {α : Type*} {X : Set α} (f : α → ℕ) (h : X.
   exact ⟨x, hx, fun y hy => hfx ▸ le_csSup hb ⟨y, hy, rfl⟩⟩
 
 /-- `COMPACTED (a)` is never empty: `[]` is always a member of `SINGLE_BREAKS`,
-and lengths are bounded by `a`'s. -/
+and lengths are bounded by `a`'s.  This is Meyer's "it is trivial to prove that,
+given a sequence of characters `a`, there is always at least one sequence `b`
+such that relation `short_breaks (a, b)` holds". -/
 lemma compacted_nonempty (a : Text) : (Compacted a).Nonempty := by
-  refine maxSet_nonempty _ ⟨[], (List.nil_sublist a), by simp [NoDoubleBreak]⟩ ⟨a.length, ?_⟩
+  refine maxSet_nonempty _ ⟨[], List.nil_sublist a, by simp [NoDoubleBreak]⟩ ⟨a.length, ?_⟩
   rintro n ⟨y, hy, rfl⟩
   exact hy.1.length_le
 
@@ -191,14 +213,26 @@ lemma mem_domGoal_iff (MAXPOS : ℕ) (i : Text) :
     obtain ⟨o, ho⟩ := minSet_nonempty numberOfNewLines h
     exact ⟨o, ho⟩
 
-/-! ## Turning every break into a newline
+/-! ## `TRIMMED`
 
-The construction behind the `⊇` direction of Meyer's domain theorem.  It is not a
-wrapping algorithm: it puts every word on a line of its own, which is acceptable
-precisely when no word is too long, and `FEWEST_LINES` then only has to be
-nonempty rather than computed. -/
+The two halves of Meyer's observation that "the necessary and sufficient
+condition for the existence of at least one sequence `c` such that
+`limited_length (b, c)` holds is that `b` contains no word ... of length greater
+than `MAXPOS`".  Necessity is `mem_noOversizeWord_of_mem_trimmed`; sufficiency
+is `trimmed_nonempty`. -/
 
-/-- Replace every break character by a newline. -/
+/-- If anything is reachable from `b` then `b` has no oversize word: a word of
+`b` survives into every equivalent text, where it lies within one line. -/
+lemma mem_noOversizeWord_of_mem_trimmed {b c : Text} {MAXPOS : ℕ}
+    (hc : c ∈ Trimmed MAXPOS b) : b ∈ NoOversizeWord MAXPOS := by
+  rw [mem_noOversizeWord_iff]
+  intro t ht hbf
+  have hn : newline ∉ t := fun hmem => hbf newline hmem (Or.inr rfl)
+  exact (le_maxLineLength (infix_of_mem_equivalent hc.1 ht hbf) hn).trans hc.2
+
+/-- The construction behind the converse.  It is not a wrapping algorithm: it
+puts every word on a line of its own, which is acceptable precisely when no word
+is too long. -/
 private def allNewlines (b : Text) : Text :=
   b.map fun c => if IsBreak c then newline else c
 
@@ -210,33 +244,16 @@ private lemma mem_equivalent_allNewlines (b : Text) : allNewlines b ∈ Equivale
   · exact Or.inr ⟨by simp only [if_pos hx]; exact Or.inr rfl, hx⟩
   · exact Or.inl (by simp only [if_neg hx])
 
-/-- An infix of a mapped list comes from an infix of the original. -/
-private lemma infix_map_exists {α β : Type*} {f : α → β} {t : List β} {b : List α}
-    (h : t.IsInfix (b.map f)) : ∃ t' : List α, t'.IsInfix b ∧ t'.map f = t := by
-  obtain ⟨l, r, hlr⟩ := h
-  obtain ⟨b₁, b₂, rfl, h₁, -⟩ := List.map_eq_append_iff.1 hlr.symm
-  obtain ⟨b₃, b₄, rfl, -, h₄⟩ := List.map_eq_append_iff.1 h₁
-  exact ⟨b₄, ⟨b₃, b₂, rfl⟩, h₄⟩
-
 /-- With every break turned into a newline, each line is a single word, so the
 longest line is the longest word. -/
 private lemma maxLineLength_allNewlines_le {b : Text} {MAXPOS : ℕ}
     (h : b ∈ NoOversizeWord MAXPOS) : maxLineLength (allNewlines b) ≤ MAXPOS := by
-  refine maxLineLength_le ?_
-  intro t ht hn
-  obtain ⟨t', ht', rfl⟩ := infix_map_exists ht
-  have hnb : ∀ c ∈ t', ¬ IsBreak c := by
-    intro c hc hbc
-    refine hn ?_
-    have := List.mem_map_of_mem (f := fun c => if IsBreak c then newline else c) hc
-    simpa only [if_pos hbc] using this
+  refine maxLineLength_le fun t ht hn => ?_
+  rw [allNewlines] at ht
+  obtain ⟨t', ht', rfl⟩ := List.infix_map_iff.1 ht
   rw [List.length_map]
-  by_contra hcon
-  have hlt : MAXPOS + 1 ≤ t'.length := by omega
-  refine absurd (h (t'.take (MAXPOS + 1)) ((List.take_prefix _ t').isInfix.trans ht') ?_) ?_
-  · rw [List.length_take]; omega
-  · rintro ⟨c, hc, hbc⟩
-    exact hnb c (List.mem_of_mem_take hc) hbc
+  exact (mem_noOversizeWord_iff MAXPOS b).1 h t' ht' fun c hc hbc =>
+    hn (List.mem_map.2 ⟨c, hc, if_pos hbc⟩)
 
 /-- If no word of `b` is too long then something is reachable from `b`. -/
 lemma trimmed_nonempty {b : Text} {MAXPOS : ℕ} (h : b ∈ NoOversizeWord MAXPOS) :

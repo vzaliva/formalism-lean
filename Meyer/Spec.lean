@@ -47,7 +47,8 @@ definitions as is usual in Lean.
   indices, where sorted means `u (i-1) ≤ u (i)`.  Taken literally the
   non-strict inequality permits an index to repeat, which would make
   `SINGLE_BREAKS` unbounded and `MAX_SET` undefined; strictly increasing is
-  plainly intended, and that is exactly `List.Sublist`.
+  plainly intended, and that is exactly `List.Sublist`.  `Meyer.Bug` formalises
+  the literal reading and proves it incompatible with his domain theorem.
 
 * `MAX_SET` and `MIN_SET` are rendered as "no element of the set does better",
   which agrees with Meyer wherever the extremum exists and is simply empty
@@ -218,8 +219,8 @@ def NoOversizeWord : Set Text :=
 
 /-!
 Meyer's two claims about this specification -- that its domain is exactly
-`NoOversizeWord`, and that it is genuinely nondeterministic -- are stated and, in
-one case, proved in `Meyer.Facts`.  This module is definitions only.
+`NoOversizeWord`, and that it is genuinely nondeterministic -- are stated and
+proved in `Meyer.Facts`.  This module is definitions only.
 -/
 
 end Meyer

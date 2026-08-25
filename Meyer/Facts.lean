@@ -6,84 +6,83 @@ import Meyer.Retention
 `Meyer.Spec` transcribes the specification; this module proves the two things
 Meyer asserts about it.  Both hold.
 
-* `goal_not_functional` — the specification is genuinely nondeterministic.
-* `domGoal_eq_noOversizeWord` — the problem is solvable exactly for texts with no
-  word longer than `MAXPOS`.
+* `goal_not_functional` -- the specification is genuinely nondeterministic.
+* `domGoal_eq_noOversizeWord` -- the problem is solvable exactly for texts with
+  no word longer than `MAXPOS`.
 
-The second is proved first for texts whose breaks are already single, which is
-the case Meyer's own phrasing addresses, and then in general using
-`Meyer.Retention.mem_noOversizeWord_compacted_iff` — the step he asserts in a
-parenthesis and does not prove.
+The second follows Meyer's own derivation sentence by sentence, with
+`Meyer.Retention.mem_noOversizeWord_compacted_iff` supplying the one step he
+takes silently.
 -/
 
 namespace Meyer
 
 /-! ## The specification is nondeterministic
 
-Meyer's own witness is `MAXPOS = 10` with input `WHO WHAT WHEN`, where `WHAT`
-may go on either line and both two-line outputs are acceptable.  The proof below
-uses a minimal instance of the same tie — `MAXPOS = 3` and `a b c`, five
-characters instead of thirteen — which keeps the decision procedures small.  The
-phenomenon is identical: the text does not fit on one line, exactly one break
-must become a newline, and either of the two breaks will do. -/
+Meyer: "there may be more than one correct output for a given input; in other
+words, a truly general specification of the problem should be nondeterministic."
+
+The witness is his own, from his analysis of the ambiguity in Goodenough and
+Gerhart's prose: with `MAXPOS = 10` and the input `WHO WHAT WHEN` "there are two
+equally correct two-line solutions (`WHAT` may be on either the first or second
+line)".  Their specification, he suspects, was nondeterministic by accident;
+his is so by design, and the formal `goal` does relate the input to both. -/
 
 section Nondeterminism
 
-/-- The input of the witness: `a b c`. -/
-private def wIn : Text := ['a', ' ', 'b', ' ', 'c']
+/-- Meyer's input, `WHO WHAT WHEN`. -/
+private def wIn : Text := "WHO WHAT WHEN".toList
 
-/-- One acceptable output: break at the first blank. -/
-private def wOut₁ : Text := ['a', '\n', 'b', ' ', 'c']
+/-- One acceptable output: `WHAT` on the first line. -/
+private def wOut₁ : Text := "WHO WHAT\nWHEN".toList
 
-/-- The other: break at the second blank. -/
-private def wOut₂ : Text := ['a', ' ', 'b', '\n', 'c']
+/-- The other: `WHAT` on the second line. -/
+private def wOut₂ : Text := "WHO\nWHAT WHEN".toList
 
 private lemma wIn_noDoubleBreak : NoDoubleBreak wIn := by decide
 
 private lemma wIn_mem_compacted : wIn ∈ Compacted wIn :=
   mem_compacted_self wIn_noDoubleBreak
 
-/-- Anything reachable from `a b c` has its length: `COMPACTED` preserves it
-because `a b c` already has single breaks, and `EQUIVALENT` preserves it by
+/-- Anything reachable from the input has its length: `COMPACTED` preserves it
+because the input already has single breaks, and `EQUIVALENT` preserves it by
 definition. -/
-private lemma length_of_mem_transf {y : Text} (hy : y ∈ Transf 3 wIn) :
-    y.length = 5 := by
+private lemma length_of_mem_transf {y : Text} (hy : y ∈ Transf 10 wIn) :
+    y.length = 13 := by
   obtain ⟨b, hb, hEquiv, -⟩ := hy
-  have hb5 : b.length = 5 := length_eq_of_mem_compacted wIn_noDoubleBreak hb
-  rw [length_eq_of_mem_equivalent hEquiv, hb5]
+  rw [length_eq_of_mem_equivalent hEquiv, length_eq_of_mem_compacted wIn_noDoubleBreak hb]
+  decide
 
 /-- Every acceptable output has at least one newline: without one it would be a
-single line of five characters, and `MAXPOS` is three. -/
-private lemma one_le_newlines {y : Text} (hy : y ∈ Transf 3 wIn) :
+single line of thirteen characters, and `MAXPOS` is ten. -/
+private lemma one_le_newlines {y : Text} (hy : y ∈ Transf 10 wIn) :
     1 ≤ numberOfNewLines y := by
   by_contra hcon
   have hzero : numberOfNewLines y = 0 := by omega
   have hnot : newline ∉ y := List.count_eq_zero.1 hzero
-  have hlen : y.length = 5 := length_of_mem_transf hy
-  have hbound : maxLineLength y ≤ 3 := hy.choose_spec.2.2
+  have hlen : y.length = 13 := length_of_mem_transf hy
+  have hbound : maxLineLength y ≤ 10 := hy.choose_spec.2.2
   have := length_le_maxLineLength_of_no_newline hnot
   omega
 
-private lemma goal_wOut₁ : Goal 3 wIn wOut₁ := by
-  refine ⟨⟨wIn, wIn_mem_compacted, by decide, maxLineLength_le_of_tails (by decide)⟩, ?_⟩
-  intro y hy
-  have : numberOfNewLines wOut₁ = 1 := by decide
-  rw [this]
-  exact one_le_newlines hy
+/-- A text equivalent to the input that fits within `MAXPOS` and has exactly one
+newline is an acceptable output, since nothing acceptable has fewer. -/
+private lemma goal_of_one_newline {o : Text} (ho : o ∈ Equivalent wIn)
+    (hmax : maxLineLength o ≤ 10) (h1 : numberOfNewLines o = 1) : Goal 10 wIn o :=
+  ⟨⟨wIn, wIn_mem_compacted, ho, hmax⟩, fun y hy => by rw [h1]; exact one_le_newlines hy⟩
 
-private lemma goal_wOut₂ : Goal 3 wIn wOut₂ := by
-  refine ⟨⟨wIn, wIn_mem_compacted, by decide, maxLineLength_le_of_tails (by decide)⟩, ?_⟩
-  intro y hy
-  have : numberOfNewLines wOut₂ = 1 := by decide
-  rw [this]
-  exact one_le_newlines hy
+private lemma goal_wOut₁ : Goal 10 wIn wOut₁ :=
+  goal_of_one_newline (by decide) (maxLineLength_le_of_tails (by decide)) (by decide)
+
+private lemma goal_wOut₂ : Goal 10 wIn wOut₂ :=
+  goal_of_one_newline (by decide) (maxLineLength_le_of_tails (by decide)) (by decide)
 
 /-- **Meyer's nondeterminism claim.**  "There may be more than one correct output
 for a given input; in other words, a truly general specification of the problem
 should be nondeterministic." -/
 theorem goal_not_functional :
     ∃ (n : ℕ) (i o₁ o₂ : Text), Goal n i o₁ ∧ Goal n i o₂ ∧ o₁ ≠ o₂ :=
-  ⟨3, wIn, wOut₁, wOut₂, goal_wOut₁, goal_wOut₂, by decide⟩
+  ⟨10, wIn, wOut₁, wOut₂, goal_wOut₁, goal_wOut₂, by decide⟩
 
 end Nondeterminism
 
@@ -93,74 +92,54 @@ Meyer's other claim:
 
 > `dom (goal) = {s | ∀i ∈ 1..length (s) − MAXPOS, ∃j ∈ i..i + MAXPOS, s (j) ∈ BREAK_CHAR}`
 
-He derives it in a paragraph, and the derivation is correct.  Both inclusions
-turn on a single step he takes silently.  His own words are that the condition
-for a solution to exist is that **`b`** — the *compacted* text — has no word
-longer than `MAXPOS`; the theorem is then stated about the *input*.  Passing
-between the two needs retention, which he asserts one page earlier in a
-parenthesis and does not prove; it is `Meyer.Retention`.
+His derivation is a paragraph of three sentences, and the proof below follows
+them in order.
 
-The rest is short:
+1. "It is trivial to prove that, given a sequence of characters `a`, there is
+   always at least one sequence `b` such that relation `short_breaks (a, b)`
+   holds."  That is `compacted_nonempty`.
 
-* `⊆` is `domGoal_subset_noOversizeWord_of_noDoubleBreak` below with `b` in place
-  of `i` — the remainder is `infix_of_mem_equivalent` and `le_maxLineLength`.
-* `⊇` needs no wrapping algorithm.  Replace *every* break of `b` with a newline:
-  each line is then a single word of `b`, hence of `a`, hence at most `MAXPOS`
-  long, so `TRIMMED (b)` is nonempty.  `FEWEST_LINES` only has to be nonempty,
-  which follows from the well-ordering of `ℕ`; it does not have to be computed.
+2. "Given `b`, however, the necessary and sufficient condition for the existence
+   of at least one sequence `c` such that `limited_length (b, c)` holds is that
+   `b` contains no word (i.e., contiguous subsequence of non-break characters)
+   of length greater than `MAXPOS`."  That is `trimmed_nonempty_iff`.  Neither
+   direction needs a wrapping algorithm: for sufficiency, put every word on a
+   line of its own.
+
+3. "Thus, the domain of definition of the relation `tr`, which is also the
+   domain of the function `TRANSF` and thus of the relation `goal`, is the set
+   of input texts containing no word longer than `MAXPOS`."  Sentence 2 is about
+   the *compacted* text `b`; sentence 3 is about the *input*.  Passing from one
+   to the other needs to know that compaction leaves the words alone, which
+   Meyer asserted a page earlier in a parenthetical remark and did not prove; it
+   is `Meyer.Retention`.  That `FEWEST_LINES` does not empty a nonempty set is
+   `mem_domGoal_iff`.
 
 Neither step is a defect in the paper, unlike the subsequence definition handled
-in `Meyer.Bug`.  Both of Meyer's claims here are true, and both are now
-proved. -/
+in `Meyer.Bug`. -/
 
 variable (MAXPOS : ℕ)
 
-/-- **The `⊆` direction, for inputs whose breaks are already single.**  Here
-`COMPACTED (i)` is just `{i}`, so the argument runs without the retention lemma:
-a break-free stretch of `i` survives into any equivalent text, and a stretch of
-`MAXPOS + 1` characters would then be a line longer than `MAXPOS`. -/
-private lemma domGoal_subset_noOversizeWord_of_noDoubleBreak {i : Text} (h : NoDoubleBreak i)
-    (hi : i ∈ DomGoal MAXPOS) : i ∈ NoOversizeWord MAXPOS := by
-  obtain ⟨o, ⟨b, hb, hEquiv, hMax⟩, -⟩ := hi
-  rw [eq_of_mem_compacted h hb] at hEquiv
-  intro t ht hlen
-  by_contra hcon
-  push Not at hcon
-  have hnl : newline ∉ t := fun hmem => hcon newline hmem (Or.inr rfl)
-  have := le_maxLineLength (infix_of_mem_equivalent hEquiv ht hcon) hnl
-  omega
-
-/-- **The `⊇` direction, for inputs whose breaks are already single.**  Put every
-word on a line of its own.  That is acceptable precisely because no word is
-longer than `MAXPOS`, and `FEWEST_LINES` only has to be nonempty. -/
-private lemma noOversizeWord_subset_domGoal_of_noDoubleBreak {i : Text} (h : NoDoubleBreak i)
-    (hi : i ∈ NoOversizeWord MAXPOS) : i ∈ DomGoal MAXPOS := by
-  rw [mem_domGoal_iff]
-  obtain ⟨c, hc⟩ := trimmed_nonempty hi
-  exact ⟨c, i, mem_compacted_self h, hc⟩
-
-/-- **Meyer's domain theorem for texts whose breaks are already single.**  This
-is the case his own sentence is about: he states the solvability condition in
-terms of the compacted text, and only afterwards transfers it to the input. -/
-theorem mem_domGoal_iff_of_noDoubleBreak {i : Text} (h : NoDoubleBreak i) :
-    i ∈ DomGoal MAXPOS ↔ i ∈ NoOversizeWord MAXPOS :=
-  ⟨domGoal_subset_noOversizeWord_of_noDoubleBreak MAXPOS h,
-    noOversizeWord_subset_domGoal_of_noDoubleBreak MAXPOS h⟩
+/-- **Meyer's condition for `limited_length` to be satisfiable.**  "The necessary
+and sufficient condition for the existence of at least one sequence `c` such that
+`limited_length (b, c)` holds is that `b` contains no word ... of length greater
+than `MAXPOS`." -/
+theorem trimmed_nonempty_iff (b : Text) :
+    (Trimmed MAXPOS b).Nonempty ↔ b ∈ NoOversizeWord MAXPOS :=
+  ⟨fun ⟨_, hc⟩ => mem_noOversizeWord_of_mem_trimmed hc, trimmed_nonempty⟩
 
 /-- **Meyer's theorem on the domain of `goal`.** -/
 theorem domGoal_eq_noOversizeWord : DomGoal MAXPOS = NoOversizeWord MAXPOS := by
   ext i
-  obtain ⟨b, hb⟩ := compacted_nonempty i
   rw [mem_domGoal_iff]
   constructor
-  · rintro ⟨c, b', hb', hc⟩
-    have hb'nd : NoDoubleBreak b' := hb'.1.2
-    have hb'dom : b' ∈ DomGoal MAXPOS :=
-      (mem_domGoal_iff MAXPOS b').2 ⟨c, b', mem_compacted_self hb'nd, hc⟩
-    exact (mem_noOversizeWord_compacted_iff MAXPOS hb').1
-      ((mem_domGoal_iff_of_noDoubleBreak MAXPOS hb'nd).1 hb'dom)
+  · rintro ⟨c, b, hb, hc⟩
+    exact (mem_noOversizeWord_compacted_iff MAXPOS hb).1
+      ((trimmed_nonempty_iff MAXPOS b).1 ⟨c, hc⟩)
   · intro hi
-    obtain ⟨c, hc⟩ := trimmed_nonempty ((mem_noOversizeWord_compacted_iff MAXPOS hb).2 hi)
+    obtain ⟨b, hb⟩ := compacted_nonempty i
+    obtain ⟨c, hc⟩ :=
+      (trimmed_nonempty_iff MAXPOS b).2 ((mem_noOversizeWord_compacted_iff MAXPOS hb).2 hi)
     exact ⟨c, b, hb, hc⟩
 
 end Meyer

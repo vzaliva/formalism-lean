@@ -32,7 +32,7 @@ specification had not previously been formalised in any proof assistant.
 | Module | Contents |
 |---|---|
 | `Meyer/Spec.lean` | the specification: `SINGLE_BREAKS`, `COMPACTED`, `EQUIVALENT`, `TRIMMED`, `FEWEST_LINES`, `goal`. Definitions only |
-| `Meyer/Lemmas.lean` | basic API: bounds on `max_line_length`, nonemptiness of `MIN_SET`/`MAX_SET`, break-substitution |
+| `Meyer/Lemmas.lean` | basic API: bounds on `max_line_length`, nonemptiness of `MIN_SET`/`MAX_SET`, break substitution, and Meyer's condition for `TRIMMED (b)` to be nonempty |
 | `Meyer/Retention.lean` | the step Meyer asserts without proof: compacting a text does not change its words |
 | `Meyer/Facts.lean` | Meyer's two claims, proved |
 | `Meyer/Bug.lean` | a defect in the paper, proved (see below) |
@@ -45,6 +45,10 @@ theorem goal_not_functional :
 
 theorem domGoal_eq_noOversizeWord : DomGoal MAXPOS = NoOversizeWord MAXPOS
 ```
+
+The witness for the first is Meyer's own, `WHO WHAT WHEN` at `MAXPOS = 10`,
+which `goal` relates to both two-line outputs. The second is assembled from the
+three sentences of his derivation, one lemma per sentence.
 
 ## What formalising it turned up
 
@@ -59,28 +63,26 @@ nothing to anything.
 
 `Meyer/Bug.lean` formalises the literal reading and proves it contradicts
 Meyer's own domain theorem, so the strict reading is *forced*, not merely
-preferable. Note which half is at fault. His informal gloss, "a sequence made of
+preferable. It also proves the literal reading is the more permissive one: the
+defect adds members to `SINGLE_BREAKS` and removes none. Note which half is at
+fault. His informal gloss, "a sequence made of
 zero or more of the elements of `s`, in the same order as in `s`", is correct;
 the formal definition printed beside it is what admits repetition. In a paper
 arguing that formalism repairs the imprecision of prose, the prose was right and
 the formalism was wrong.
 
-**2. The step the theorem rests on is a parenthesis, and its obvious proof does
-not work.** Meyer's domain theorem needs to know that compacting a text leaves
-its *words* alone. He asserts it in an aside (omit a non-break character and it
-could be reinserted to give a longer member of `SINGLE_BREAKS`) and moves on.
-His own sentence states the solvability condition in terms of the *compacted*
-text and then states the theorem about the *input*; this is the silent bridge.
+**2. The domain theorem rests on a lemma Meyer states only in passing.** The
+theorem needs to know that compacting a text leaves its *words* intact. Meyer
+says so in a parenthetical remark (omit a non-break character and it could be
+reinserted to give a longer member of `SINGLE_BREAKS`) and never returns to it.
+The gap shows in his derivation: he states the solvability condition for the
+*compacted* text, then states the theorem about the *input*, without saying what
+carries one to the other.
 
-The argument is sound in outline, but the induction it suggests fails: maximality
-of `b` in `a` does not hand down maximality of `b`'s tail in `a`'s tail. For
-`a = "  x"` the compaction is `b = " x"`; after keeping the first blank the
-residual problem is `"x"` against `" x"`, which `" x"` wins. `Meyer/Retention.lean`
-repairs it with a second invariant, in force exactly when a break has just been
-emitted, under which competitors must additionally not begin with a break. The
-two invariants alternate through the induction, and their conclusions have to be
-asymmetric: the unconstrained one controls prefixes as well as infixes, and the
-prefix half genuinely fails under the constrained one.
+The remark is sound in outline, but the induction it suggests fails and needs a
+second invariant to go through; `Meyer/Retention.lean` gives the counterexample
+and the repair. With retention in hand, `Meyer/Facts.lean` follows Meyer's
+derivation sentence by sentence.
 
 **3. Nothing else was wrong.** Both of Meyer's claims are true, and the rest of
 the specification transcribes without incident. Keep (1) and (2) apart, though:
@@ -112,6 +114,10 @@ side condition.
 
 The Lean development is by Vadim Zaliva, [zaliva.org](https://zaliva.org/).
 The specification it transcribes is Meyer's.
+
+## Licence
+
+[MIT No Attribution](https://spdx.org/licenses/MIT-0.html); see `LICENSE`.
 
 ## References
 

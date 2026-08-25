@@ -12,7 +12,7 @@ cannot be what he means.
 
 Meyer defines a subsequence of `s` as `s ∘ u`, where `u` is a **sorted** sequence
 of natural numbers -- a list of positions, looked up in `s` in order.  Sorted he
-defines, one page earlier, as
+defines, in the same box, as
 
 > `∀i ∈ 2..length (s), s (i-1) ≤ s (i)`
 
@@ -20,7 +20,7 @@ with a non-strict `≤`.  So `u` may repeat a position.  Under his own example
 `s = <a b a a b d c d>` the index sequence `<3 3 3 3>` is sorted, and therefore
 `<a a a a>` is a "subsequence" of `s` -- as is a run of a thousand `a`s.
 
-His informal gloss immediately above -- "a sequence made of zero or more of the
+His informal gloss in the main text -- "a sequence made of zero or more of the
 elements of `s`, in the same order as in `s`" -- is correct.  It is the formal
 definition beside it that admits repetition.
 
@@ -37,34 +37,18 @@ literal reading that theorem is false, which is what
 `domGoal_ne_noOversizeWord` below establishes.  Strictly increasing is therefore
 forced, not merely preferable.
 
-## What is *not* claimed
+## What is and is not claimed
 
 The intended reading is not in conflict with anything; only the literal one is.
-
-One remark below is prose and not Lean: the literal reading ought to be strictly
-*more* permissive than the intended one, since every genuine sublist is
-obtainable from a strictly increasing index sequence and hence from a
-non-decreasing one, so the defect should add junk to `SINGLE_BREAKS` rather than
-remove anything.  Proving `Meyer.SingleBreaks a ⊆ SingleBreaks a` would need a
-translation from `List.Sublist` to index sequences, which nothing here requires;
-it is stated as an expectation, not a result.
+The literal reading is strictly the more permissive of the two: every genuine
+sublist arises from a strictly increasing index sequence, hence from a
+non-decreasing one (`singleBreaks_subset`), so the defect adds junk to
+`SINGLE_BREAKS` and removes nothing.  It is the junk that does the damage.
 -/
 
 namespace Meyer.Bug
 
 open Meyer
-
-/-- A list of copies of `a` is a chain for any relation `R` with `R a a`. -/
-private lemma isChain_replicate {α : Type*} {R : α → α → Prop} {a : α} (h : R a a) (n : ℕ) :
-    (List.replicate n a).IsChain R := by
-  induction n with
-  | zero => simp
-  | succ n ih =>
-    rw [List.replicate_succ]
-    refine ih.cons ?_
-    cases n with
-    | zero => simp
-    | succ m => simpa [List.replicate_succ] using h
 
 /-- **Meyer's definition of subsequence, taken literally.**  `t = s ∘ u` for some
 sequence `u` of positions that is sorted in his sense, i.e. non-decreasing.
@@ -81,6 +65,15 @@ count as a subsequence of that text. -/
 example : SublistWithRepeats ['a', 'a', 'a'] ['x', 'a', 'y'] :=
   ⟨[1, 1, 1], by decide, by decide⟩
 
+/-- Every genuine sublist is a subsequence in the literal sense too: it is
+`s ∘ u` for a strictly increasing `u`, and strictly increasing is in particular
+non-decreasing. -/
+lemma sublistWithRepeats_of_sublist {t s : Text} (h : t.Sublist s) : SublistWithRepeats t s := by
+  obtain ⟨u, rfl, hu⟩ := List.sublist_eq_map_getElem h
+  refine ⟨u.map Fin.val, (hu.map Fin.val fun _ _ hab => Nat.le_of_lt hab).isChain, ?_⟩
+  rw [List.map_map, List.map_map]
+  exact List.map_congr_left fun i _ => List.getElem?_eq_getElem i.isLt
+
 /-! ## The specification, rebuilt on the literal reading
 
 Only `SINGLE_BREAKS` changes; everything after it is Meyer's, re-stated over the
@@ -90,6 +83,10 @@ new definition.  `TRIMMED`, `limited_length`, `FEWEST_LINES` and
 /-- `SINGLE_BREAKS (a)` under the literal reading. -/
 def SingleBreaks (a : Text) : Set Text :=
   {s | SublistWithRepeats s a ∧ NoDoubleBreak s}
+
+/-- The literal reading only enlarges `SINGLE_BREAKS`. -/
+lemma singleBreaks_subset (a : Text) : Meyer.SingleBreaks a ⊆ SingleBreaks a :=
+  fun _ hs => ⟨sublistWithRepeats_of_sublist hs.1, hs.2⟩
 
 /-- `COMPACTED (a)` under the literal reading. -/
 def Compacted (a : Text) : Set Text :=
@@ -123,9 +120,9 @@ lemma replicate_mem_singleBreaks {a : Text} {p : ℕ} {c : Char}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) (n : ℕ) :
     List.replicate n c ∈ SingleBreaks a := by
   constructor
-  · refine ⟨List.replicate n p, isChain_replicate le_rfl n, ?_⟩
+  · refine ⟨List.replicate n p, List.isChain_replicate_of_rel n le_rfl, ?_⟩
     rw [List.map_replicate, List.map_replicate, hp]
-  · exact isChain_replicate (fun h => absurd h hc) n
+  · exact List.isChain_replicate_of_rel n fun h => absurd h hc
 
 /-- **`COMPACTED` collapses.**  If `a` contains a non-break character then
 `SINGLE_BREAKS (a)` has members of every length, so no member is longest and the

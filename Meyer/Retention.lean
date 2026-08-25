@@ -6,7 +6,7 @@ import Meyer.Lemmas
 The one step Meyer asserts without proof, and the only thing standing between the
 specification of `Meyer.Spec` and his theorem on the domain of `goal`.
 
-Meyer's justification is a parenthesis:
+Meyer's entire justification is one parenthetical remark:
 
 > any `b ∈ COMPACTED (a)` must have retained from `a` all non break characters
 > (if such a character had been omitted, it could be inserted into `b` and yield
@@ -43,14 +43,7 @@ unconstrained invariant available.
 
 namespace Meyer
 
-/-! ## Words
-
-A *word*, in Meyer's sense, is a stretch of characters none of which is a break.
-`NoOversizeWord` is a bound on the length of the words of a text, and the content
-of the retention lemma is that compaction leaves the words alone. -/
-
-/-- A text containing no break character: one of Meyer's *words*. -/
-def BreakFree (t : Text) : Prop := ∀ c ∈ t, ¬ IsBreak c
+/-! ## Words and heads -/
 
 /-- A tail of a word is a word. -/
 private lemma BreakFree.of_cons {c : Char} {t : Text} (h : BreakFree (c :: t)) : BreakFree t :=
@@ -96,23 +89,17 @@ inside `c :: l` must in fact be inside `l`. -/
 /-- No nonempty word is a prefix of a text beginning with a break. -/
 private lemma breakFree_prefix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : BreakFree t) :
     t.IsPrefix (c :: l) ↔ t = [] := by
-  constructor
-  · intro hp
-    cases t with
-    | nil => rfl
-    | cons e s =>
-      exact absurd ((List.cons_prefix_cons.1 hp).1 ▸ hc) ht.head
-  · rintro rfl; exact List.nil_prefix
+  cases t with
+  | nil => simp
+  | cons e s =>
+    refine iff_of_false (fun hp => ?_) (List.cons_ne_nil e s)
+    exact ht.head ((List.cons_prefix_cons.1 hp).1 ▸ hc)
 
 /-- A word inside a text beginning with a break lies wholly beyond that break. -/
 private lemma breakFree_infix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : BreakFree t) :
     t.IsInfix (c :: l) ↔ t.IsInfix l := by
   rw [List.infix_cons_iff, breakFree_prefix_cons hc ht]
-  constructor
-  · rintro (rfl | h)
-    · exact List.nil_infix
-    · exact h
-  · exact Or.inr
+  exact ⟨fun h => h.elim (fun h => h ▸ List.nil_infix) id, Or.inr⟩
 
 /-! ## The two invariants and the two conclusions -/
 
@@ -157,7 +144,20 @@ private lemma cons_sameWords {a b : Text} {c : Char} (hi : SameWords a b)
   rw [List.infix_cons_iff, List.infix_cons_iff]
   exact or_congr (cons_sameInitialWords hp t ht) (hi t ht)
 
-/-! ## The exchange argument -/
+/-! ## The exchange argument
+
+Maximality is used in two ways: a competitor `c :: y` bounds `y` by the tail of
+`b`, and the competitor `c :: b` itself, when legal, is longer than `b` and so
+cannot exist.  The two arithmetic facts are isolated here. -/
+
+/-- Strip a common leading character from a length comparison. -/
+private lemma length_le_of_cons_le_cons {c : Char} {y b : Text}
+    (h : (c :: y).length ≤ (c :: b).length) : y.length ≤ b.length := by
+  simpa using h
+
+/-- Nothing is at least as long as itself with a character added. -/
+private lemma not_length_cons_le {c : Char} {b : Text} : ¬ (c :: b).length ≤ b.length := by
+  simp
 
 /-- **Meyer's exchange argument.**  A longest element of `SINGLE_BREAKS (a)` has
 the same words as `a`, and -- when no break has just been emitted -- the same
@@ -172,49 +172,29 @@ private lemma sameWords_of_sublist {a b : Text} (h : b.Sublist a) :
   | slnil => exact ⟨fun _ => ⟨fun _ _ => Iff.rfl, fun _ _ => Iff.rfl⟩, fun _ _ _ => Iff.rfl⟩
   | @cons B A c h ih =>
     -- `c` was dropped.  Reinserting it would give a longer element of
-    -- `SINGLE_BREAKS (c :: A)` unless `c` is a break and `B` already begins with
-    -- one -- which is Meyer's parenthesis.
+    -- `SINGLE_BREAKS (c :: A)`, so reinserting it must be illegal: `c` is a
+    -- break and, under the unconstrained invariant, `B` already begins with one.
+    -- This is Meyer's parenthetical remark.
     constructor
     · rintro ⟨-, hnd, hmax⟩
-      have hkey : ¬ NoDoubleBreak (c :: B) := by
-        intro hcb
-        have := hmax (c :: B) (h.cons_cons c) hcb
-        simp only [List.length_cons] at this
-        omega
-      rw [noDoubleBreak_cons_iff, not_and_or] at hkey
-      have hc : IsBreak c := by
-        rcases hkey with hk | hk
-        · by_contra hcon; exact hk fun hb => absurd hb hcon
-        · exact absurd hnd hk
-      have hnbh : ¬ NoBreakHead B := by
-        rcases hkey with hk | hk
-        · intro hcon; exact hk fun _ => hcon
-        · exact absurd hnd hk
+      have hkey : ¬ (IsBreak c → NoBreakHead B) := fun hlegal =>
+        not_length_cons_le (hmax (c :: B) (h.cons_cons c) (noDoubleBreak_cons_iff.2 ⟨hlegal, hnd⟩))
+      obtain ⟨hc, hnbh⟩ := Classical.not_imp.1 hkey
+      obtain ⟨d, l, rfl⟩ : ∃ d l, B = d :: l := by
+        cases B with
+        | nil => simp at hnbh
+        | cons d l => exact ⟨d, l, rfl⟩
+      have hd : IsBreak d := by simpa using hnbh
       obtain ⟨hi, -⟩ := ih.1 ⟨h, hnd, fun y hy hy2 => hmax y (hy.cons c) hy2⟩
       refine ⟨fun t ht => ?_, fun t ht => ?_⟩
       · rw [breakFree_infix_cons hc ht]; exact hi t ht
-      · -- both `c :: A` and `B` begin with a break, so neither has a nonempty
-        -- initial word
-        rw [breakFree_prefix_cons hc ht]
-        constructor
-        · rintro rfl; exact List.nil_prefix
-        · intro hp
-          cases t with
-          | nil => rfl
-          | cons e s =>
-            exfalso
-            cases B with
-            | nil => simp at hp
-            | cons d l =>
-              have hd : IsBreak d := not_not.1 (by simpa using hnbh)
-              exact ht.head (by rw [(List.cons_prefix_cons.1 hp).1]; exact hd)
+      · -- both texts begin with a break, so neither has a nonempty initial word
+        rw [breakFree_prefix_cons hc ht, breakFree_prefix_cons hd ht]
     · rintro ⟨-, hnd, hbh, hmax⟩
       have hc : IsBreak c := by
         by_contra hcon
-        have := hmax (c :: B) (h.cons_cons c)
-          (noDoubleBreak_cons_iff.2 ⟨fun hb => absurd hb hcon, hnd⟩) (by simpa using hcon)
-        simp only [List.length_cons] at this
-        omega
+        exact not_length_cons_le (hmax (c :: B) (h.cons_cons c)
+          (noDoubleBreak_cons_iff.2 ⟨fun hb => absurd hb hcon, hnd⟩) (by simpa using hcon))
       have hi := ih.2 ⟨h, hnd, hbh, fun y hy hy2 hy3 => hmax y (hy.cons c) hy2 hy3⟩
       intro t ht
       rw [breakFree_infix_cons hc ht]; exact hi t ht
@@ -225,29 +205,23 @@ private lemma sameWords_of_sublist {a b : Text} (h : b.Sublist a) :
       · -- a break is retained: competitors downstream may no longer begin with a
         -- break, and no word crosses `c` on either side
         have hbh : NoBreakHead B := (noDoubleBreak_cons_iff.1 hnd).1 hc
-        have hi := ih.2 ⟨h, hnd.of_cons, hbh, fun y hy hy2 hy3 => by
-          have := hmax (c :: y) (hy.cons_cons c)
-            (noDoubleBreak_cons_iff.2 ⟨fun _ => hy3, hy2⟩)
-          simp only [List.length_cons] at this
-          omega⟩
+        have hi := ih.2 ⟨h, hnd.of_cons, hbh, fun y hy hy2 hy3 =>
+          length_le_of_cons_le_cons (hmax (c :: y) (hy.cons_cons c)
+            (noDoubleBreak_cons_iff.2 ⟨fun _ => hy3, hy2⟩))⟩
         refine ⟨fun t ht => ?_, fun t ht => ?_⟩
         · rw [breakFree_infix_cons hc ht, breakFree_infix_cons hc ht]; exact hi t ht
         · rw [breakFree_prefix_cons hc ht, breakFree_prefix_cons hc ht]
       · -- a non-break is retained: the invariant is unchanged and both
         -- conclusions cons through
-        obtain ⟨hi, hp⟩ := ih.1 ⟨h, hnd.of_cons, fun y hy hy2 => by
-          have := hmax (c :: y) (hy.cons_cons c)
-            (noDoubleBreak_cons_iff.2 ⟨fun hb => absurd hb hc, hy2⟩)
-          simp only [List.length_cons] at this
-          omega⟩
+        obtain ⟨hi, hp⟩ := ih.1 ⟨h, hnd.of_cons, fun y hy hy2 =>
+          length_le_of_cons_le_cons (hmax (c :: y) (hy.cons_cons c)
+            (noDoubleBreak_cons_iff.2 ⟨fun hb => absurd hb hc, hy2⟩))⟩
         exact ⟨cons_sameWords hi hp, cons_sameInitialWords hp⟩
     · rintro ⟨-, hnd, hbh, hmax⟩
       have hc : ¬ IsBreak c := by simpa using hbh
-      obtain ⟨hi, hp⟩ := ih.1 ⟨h, hnd.of_cons, fun y hy hy2 => by
-        have := hmax (c :: y) (hy.cons_cons c)
-          (noDoubleBreak_cons_iff.2 ⟨fun hb => absurd hb hc, hy2⟩) (by simpa using hc)
-        simp only [List.length_cons] at this
-        omega⟩
+      obtain ⟨hi, hp⟩ := ih.1 ⟨h, hnd.of_cons, fun y hy hy2 =>
+        length_le_of_cons_le_cons (hmax (c :: y) (hy.cons_cons c)
+          (noDoubleBreak_cons_iff.2 ⟨fun hb => absurd hb hc, hy2⟩) (by simpa using hc))⟩
       exact cons_sameWords hi hp
 
 /-- **Meyer's retention claim.**  Every member of `COMPACTED (a)` retains all of
@@ -259,34 +233,12 @@ theorem sameWords_of_mem_compacted {a b : Text} (hb : b ∈ Compacted a) : SameW
   ((sameWords_of_sublist hb.1.1).1
     ⟨hb.1.1, hb.1.2, fun y hy hy2 => hb.2 y ⟨hy, hy2⟩⟩).1
 
-/-! ## `NoOversizeWord` in terms of words -/
-
-/-- `NoOversizeWord` says exactly that no word is longer than `MAXPOS`.  Meyer's
-phrasing quantifies over stretches of the single length `MAXPOS + 1`; the two
-agree because any longer word has a word of that length inside it. -/
-theorem mem_noOversizeWord_iff (MAXPOS : ℕ) (s : Text) :
-    s ∈ NoOversizeWord MAXPOS ↔
-      ∀ t : Text, t.IsInfix s → BreakFree t → t.length ≤ MAXPOS := by
-  constructor
-  · intro h t ht hbf
-    by_contra hcon
-    obtain ⟨c, hc, hbc⟩ :=
-      h (t.take (MAXPOS + 1)) ((List.take_prefix _ t).isInfix.trans ht)
-        (by rw [List.length_take]; omega)
-    exact hbf c (List.mem_of_mem_take hc) hbc
-  · intro h t ht hlen
-    by_contra hcon
-    have := h t ht fun c hcm hbk => hcon ⟨c, hcm, hbk⟩
-    omega
-
 /-! ## The step Meyer does not prove -/
-
-variable (MAXPOS : ℕ)
 
 /-- **The one step Meyer asserts without proof.**  Compacting a text does not
 change its words, so a compaction of `a` has an oversize word exactly when `a`
 does. -/
-theorem mem_noOversizeWord_compacted_iff {a b : Text} (hb : b ∈ Compacted a) :
+theorem mem_noOversizeWord_compacted_iff (MAXPOS : ℕ) {a b : Text} (hb : b ∈ Compacted a) :
     b ∈ NoOversizeWord MAXPOS ↔ a ∈ NoOversizeWord MAXPOS := by
   have hw : SameWords a b := sameWords_of_mem_compacted hb
   rw [mem_noOversizeWord_iff, mem_noOversizeWord_iff]
