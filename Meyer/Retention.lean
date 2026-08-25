@@ -1,6 +1,3 @@
-/-
-Copyright (c) 2026 Vadim Zaliva. All rights reserved.
--/
 import Meyer.Lemmas
 
 /-!

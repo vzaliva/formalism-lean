@@ -108,6 +108,11 @@ matter); "subsequence" is `List.Sublist`, for the reason above; and `MAX_SET` /
 wherever the extremum exists and is empty otherwise, in place of his finiteness
 side condition.
 
+## Author
+
+The Lean development is by Vadim Zaliva, [zaliva.org](https://zaliva.org/).
+The specification it transcribes is Meyer's.
+
 ## References
 
 - **Naur, Peter.** "Programming by Action Clusters." *BIT* 9(3):250–258, 1969.

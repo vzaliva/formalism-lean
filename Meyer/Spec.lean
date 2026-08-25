@@ -1,6 +1,3 @@
-/-
-Copyright (c) 2026 Vadim Zaliva. All rights reserved.
--/
 import Mathlib.Data.List.Chain
 import Mathlib.Data.List.Forall2
 import Mathlib.Data.List.Infix
