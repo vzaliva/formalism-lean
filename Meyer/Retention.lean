@@ -56,21 +56,21 @@ of the retention lemma is that compaction leaves the words alone. -/
 def BreakFree (t : Text) : Prop := ∀ c ∈ t, ¬ IsBreak c
 
 /-- A tail of a word is a word. -/
-theorem BreakFree.of_cons {c : Char} {t : Text} (h : BreakFree (c :: t)) : BreakFree t :=
+private lemma BreakFree.of_cons {c : Char} {t : Text} (h : BreakFree (c :: t)) : BreakFree t :=
   fun x hx => h x (List.mem_cons_of_mem _ hx)
 
 /-- A word does not begin with a break character. -/
-theorem BreakFree.head {c : Char} {t : Text} (h : BreakFree (c :: t)) : ¬ IsBreak c :=
+private lemma BreakFree.head {c : Char} {t : Text} (h : BreakFree (c :: t)) : ¬ IsBreak c :=
   h c (List.mem_cons_self ..)
 
 /-- The text does not begin with a break character; vacuously true of `[]`. -/
-def NoBreakHead : Text → Prop
+private def NoBreakHead : Text → Prop
   | [] => True
   | c :: _ => ¬ IsBreak c
 
-@[simp] theorem noBreakHead_nil : NoBreakHead [] := trivial
+@[simp] private lemma noBreakHead_nil : NoBreakHead [] := trivial
 
-@[simp] theorem noBreakHead_cons {c : Char} {l : Text} :
+@[simp] private lemma noBreakHead_cons {c : Char} {l : Text} :
     NoBreakHead (c :: l) ↔ ¬ IsBreak c := Iff.rfl
 
 /-! ## `NoDoubleBreak` at a cons
@@ -80,14 +80,14 @@ lemma: it is the chain condition rewritten as a statement about the head. -/
 
 /-- Consing onto a text with single breaks keeps them single exactly when the new
 character, if it is a break, is not followed by another. -/
-theorem noDoubleBreak_cons_iff {c : Char} {b : Text} :
+private lemma noDoubleBreak_cons_iff {c : Char} {b : Text} :
     NoDoubleBreak (c :: b) ↔ (IsBreak c → NoBreakHead b) ∧ NoDoubleBreak b := by
   cases b with
   | nil => simp [NoDoubleBreak]
   | cons d l => simp [NoDoubleBreak, List.isChain_cons_cons]
 
 /-- A tail of a text with single breaks has single breaks. -/
-theorem NoDoubleBreak.of_cons {c : Char} {b : Text} (h : NoDoubleBreak (c :: b)) :
+private lemma NoDoubleBreak.of_cons {c : Char} {b : Text} (h : NoDoubleBreak (c :: b)) :
     NoDoubleBreak b := (noDoubleBreak_cons_iff.1 h).2
 
 /-! ## Words do not cross a break
@@ -97,7 +97,7 @@ at the front of `c :: l` with `c` a break must be empty, and a word anywhere
 inside `c :: l` must in fact be inside `l`. -/
 
 /-- No nonempty word is a prefix of a text beginning with a break. -/
-theorem breakFree_prefix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : BreakFree t) :
+private lemma breakFree_prefix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : BreakFree t) :
     t.IsPrefix (c :: l) ↔ t = [] := by
   constructor
   · intro hp
@@ -108,7 +108,7 @@ theorem breakFree_prefix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : Bre
   · rintro rfl; exact List.nil_prefix
 
 /-- A word inside a text beginning with a break lies wholly beyond that break. -/
-theorem breakFree_infix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : BreakFree t) :
+private lemma breakFree_infix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : BreakFree t) :
     t.IsInfix (c :: l) ↔ t.IsInfix l := by
   rw [List.infix_cons_iff, breakFree_prefix_cons hc ht]
   constructor
@@ -121,14 +121,14 @@ theorem breakFree_infix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : Brea
 
 /-- The unconstrained invariant: `b` is a longest element of `SINGLE_BREAKS (a)`.
 Uncurried, this is exactly `b ∈ COMPACTED (a)`. -/
-def MaxFree (a b : Text) : Prop :=
+private def MaxFree (a b : Text) : Prop :=
   b.Sublist a ∧ NoDoubleBreak b ∧
     ∀ y : Text, y.Sublist a → NoDoubleBreak y → y.length ≤ b.length
 
 /-- The strengthened invariant, in force when the character emitted just before
 this point was a break: `b` itself must not begin with a break, and it need only
 beat competitors that do not begin with one. -/
-def MaxAfterBreak (a b : Text) : Prop :=
+private def MaxAfterBreak (a b : Text) : Prop :=
   b.Sublist a ∧ NoDoubleBreak b ∧ NoBreakHead b ∧
     ∀ y : Text, y.Sublist a → NoDoubleBreak y → NoBreakHead y → y.length ≤ b.length
 
@@ -138,11 +138,11 @@ def SameWords (a b : Text) : Prop :=
   ∀ t : Text, BreakFree t → (t.IsInfix a ↔ t.IsInfix b)
 
 /-- `a` and `b` begin with the same words. -/
-def SameInitialWords (a b : Text) : Prop :=
+private def SameInitialWords (a b : Text) : Prop :=
   ∀ t : Text, BreakFree t → (t.IsPrefix a ↔ t.IsPrefix b)
 
 /-- Agreement on initial words is stable under consing the same character. -/
-theorem cons_sameInitialWords {a b : Text} {c : Char} (hp : SameInitialWords a b) :
+private lemma cons_sameInitialWords {a b : Text} {c : Char} (hp : SameInitialWords a b) :
     SameInitialWords (c :: a) (c :: b) := by
   intro t ht
   cases t with
@@ -154,7 +154,7 @@ theorem cons_sameInitialWords {a b : Text} {c : Char} (hp : SameInitialWords a b
 /-- Agreement on words is stable under consing the same character, given
 agreement on initial words: a word of `c :: a` either starts at `c` or sits
 inside `a`. -/
-theorem cons_sameWords {a b : Text} {c : Char} (hi : SameWords a b)
+private lemma cons_sameWords {a b : Text} {c : Char} (hi : SameWords a b)
     (hp : SameInitialWords a b) : SameWords (c :: a) (c :: b) := by
   intro t ht
   rw [List.infix_cons_iff, List.infix_cons_iff]
@@ -168,7 +168,7 @@ initial words.
 
 The two invariants must be proved together: each retention step switches from one
 to the other according to whether the retained character is a break. -/
-theorem sameWords_of_sublist {a b : Text} (h : b.Sublist a) :
+private lemma sameWords_of_sublist {a b : Text} (h : b.Sublist a) :
     (MaxFree a b → SameWords a b ∧ SameInitialWords a b) ∧
     (MaxAfterBreak a b → SameWords a b) := by
   induction h with

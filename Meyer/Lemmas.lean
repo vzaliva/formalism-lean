@@ -40,7 +40,7 @@ instance (b s : Text) : Decidable (s ∈ Equivalent b) :=
 
 /-- Every infix is a prefix of a suffix, so quantifying over the infixes of a
 concrete list is a bounded — and therefore decidable — quantification. -/
-theorem infix_iff_mem_tails_inits {α : Type*} (t s : List α) :
+private lemma infix_iff_mem_tails_inits {α : Type*} (t s : List α) :
     t.IsInfix s ↔ ∃ u ∈ s.tails, t ∈ u.inits := by
   rw [List.infix_iff_prefix_suffix]
   constructor
@@ -51,30 +51,29 @@ theorem infix_iff_mem_tails_inits {α : Type*} (t s : List α) :
 
 /-! ## `maxLineLength` -/
 
-/-- The set of lengths of newline-free infixes of `s`, whose supremum is
-`maxLineLength s`. -/
-def lineLengths (s : Text) : Set ℕ :=
+/-- The set `maxLineLength` takes the supremum of.  Naming it lets its
+nonemptiness and boundedness be discharged once, below, instead of at every
+use. -/
+private def lineLengths (s : Text) : Set ℕ :=
   {n | ∃ t : Text, t.IsInfix s ∧ newline ∉ t ∧ t.length = n}
 
-theorem maxLineLength_eq_sSup (s : Text) : maxLineLength s = sSup (lineLengths s) := rfl
-
 /-- `0` is always the length of a newline-free infix, namely `[]`. -/
-theorem lineLengths_nonempty (s : Text) : (lineLengths s).Nonempty :=
+private lemma lineLengths_nonempty (s : Text) : (lineLengths s).Nonempty :=
   ⟨0, [], List.nil_infix, by simp, rfl⟩
 
 /-- No infix is longer than the list it sits in. -/
-theorem lineLengths_bddAbove (s : Text) : BddAbove (lineLengths s) := by
+private lemma lineLengths_bddAbove (s : Text) : BddAbove (lineLengths s) := by
   refine ⟨s.length, ?_⟩
   rintro n ⟨t, ht, -, rfl⟩
   exact ht.length_le
 
 /-- Every newline-free infix is at most as long as the longest line. -/
-theorem le_maxLineLength {s t : Text} (ht : t.IsInfix s) (hn : newline ∉ t) :
+lemma le_maxLineLength {s t : Text} (ht : t.IsInfix s) (hn : newline ∉ t) :
     t.length ≤ maxLineLength s :=
   le_csSup (lineLengths_bddAbove s) ⟨t, ht, hn, rfl⟩
 
 /-- To bound the longest line it suffices to bound every newline-free infix. -/
-theorem maxLineLength_le {s : Text} {N : ℕ}
+lemma maxLineLength_le {s : Text} {N : ℕ}
     (h : ∀ t : Text, t.IsInfix s → newline ∉ t → t.length ≤ N) :
     maxLineLength s ≤ N := by
   refine csSup_le (lineLengths_nonempty s) ?_
@@ -83,7 +82,7 @@ theorem maxLineLength_le {s : Text} {N : ℕ}
 
 /-- The form used on concrete texts: the quantification is bounded, so `decide`
 can discharge it. -/
-theorem maxLineLength_le_of_tails {s : Text} {N : ℕ}
+lemma maxLineLength_le_of_tails {s : Text} {N : ℕ}
     (h : ∀ u ∈ s.tails, ∀ t ∈ u.inits, newline ∉ t → t.length ≤ N) :
     maxLineLength s ≤ N := by
   refine maxLineLength_le ?_
@@ -92,7 +91,7 @@ theorem maxLineLength_le_of_tails {s : Text} {N : ℕ}
   exact h u hu t htu hn
 
 /-- A text with no newline at all is one long line. -/
-theorem length_le_maxLineLength_of_no_newline {s : Text} (hn : newline ∉ s) :
+lemma length_le_maxLineLength_of_no_newline {s : Text} (hn : newline ∉ s) :
     s.length ≤ maxLineLength s :=
   le_maxLineLength (List.infix_refl s) hn
 
@@ -100,24 +99,24 @@ theorem length_le_maxLineLength_of_no_newline {s : Text} (hn : newline ∉ s) :
 
 /-- If a text already has no two adjacent break characters then it is itself a
 member of its `SINGLE_BREAKS`, and so nothing in `COMPACTED` can be shorter. -/
-theorem mem_singleBreaks_self {a : Text} (h : NoDoubleBreak a) :
+private lemma mem_singleBreaks_self {a : Text} (h : NoDoubleBreak a) :
     a ∈ SingleBreaks a :=
   ⟨List.Sublist.refl a, h⟩
 
 /-- Consequently every member of `COMPACTED (a)` has the full length of `a`:
 maximality forces it up, and being a sublist forces it down. -/
-theorem length_eq_of_mem_compacted {a b : Text} (h : NoDoubleBreak a)
+lemma length_eq_of_mem_compacted {a b : Text} (h : NoDoubleBreak a)
     (hb : b ∈ Compacted a) : b.length = a.length :=
   le_antisymm hb.1.1.length_le (hb.2 a (mem_singleBreaks_self h))
 
 /-- A text with no two adjacent break characters is a member of its own
 `COMPACTED`: no subsequence of it can be longer than it is. -/
-theorem mem_compacted_self {a : Text} (h : NoDoubleBreak a) : a ∈ Compacted a :=
+lemma mem_compacted_self {a : Text} (h : NoDoubleBreak a) : a ∈ Compacted a :=
   ⟨mem_singleBreaks_self h, fun _ hy => hy.1.length_le⟩
 
 /-- When `a` itself has single breaks, `COMPACTED (a)` is exactly `{a}`: any
 member is a sublist of `a` of the same length, hence `a`. -/
-theorem eq_of_mem_compacted {a b : Text} (h : NoDoubleBreak a) (hb : b ∈ Compacted a) :
+lemma eq_of_mem_compacted {a b : Text} (h : NoDoubleBreak a) (hb : b ∈ Compacted a) :
     b = a :=
   hb.1.1.eq_of_length (length_eq_of_mem_compacted h hb)
 
@@ -125,12 +124,12 @@ theorem eq_of_mem_compacted {a b : Text} (h : NoDoubleBreak a) (hb : b ∈ Compa
 
 /-- Equivalent texts have the same length; this is the first of Meyer's two
 conditions on `EQUIVALENT`, and `List.Forall₂` carries it. -/
-theorem length_eq_of_mem_equivalent {b s : Text} (h : s ∈ Equivalent b) :
+lemma length_eq_of_mem_equivalent {b s : Text} (h : s ∈ Equivalent b) :
     s.length = b.length :=
   List.Forall₂.length_eq h
 
 /-- `Forall₂` splits along an append in its second argument. -/
-theorem forall₂_split {α β : Type*} {R : α → β → Prop} {o : List α} {i₁ i₂ : List β}
+private lemma forall₂_split {α β : Type*} {R : α → β → Prop} {o : List α} {i₁ i₂ : List β}
     (h : List.Forall₂ R o (i₁ ++ i₂)) :
     ∃ o₁ o₂, o = o₁ ++ o₂ ∧ List.Forall₂ R o₁ i₁ ∧ List.Forall₂ R o₂ i₂ := by
   induction i₁ generalizing o with
@@ -143,7 +142,7 @@ theorem forall₂_split {α β : Type*} {R : α → β → Prop} {o : List α} {
 
 /-- Over a stretch containing no break characters, an equivalent text is not
 merely equivalent but equal: break substitution has nothing to act on. -/
-theorem eq_of_forall₂_of_noBreak {t' t : Text}
+private lemma eq_of_forall₂_of_noBreak {t' t : Text}
     (h : List.Forall₂ (fun x y => x = y ∨ (IsBreak x ∧ IsBreak y)) t' t)
     (hb : ∀ c ∈ t, ¬ IsBreak c) : t' = t := by
   induction h with
@@ -154,7 +153,7 @@ theorem eq_of_forall₂_of_noBreak {t' t : Text}
     rw [hx, ih fun c hc => hb c (List.mem_cons_of_mem _ hc)]
 
 /-- A break-free stretch of `b` survives into anything equivalent to `b`. -/
-theorem infix_of_mem_equivalent {b o t : Text} (ho : o ∈ Equivalent b)
+lemma infix_of_mem_equivalent {b o t : Text} (ho : o ∈ Equivalent b)
     (ht : t.IsInfix b) (hb : ∀ c ∈ t, ¬ IsBreak c) : t.IsInfix o := by
   obtain ⟨l, r, rfl⟩ := ht
   -- `++` is left-associative, so peel `r` off first, then `t`.
@@ -165,28 +164,28 @@ theorem infix_of_mem_equivalent {b o t : Text} (ho : o ∈ Equivalent b)
 /-! ## Nonemptiness of the extremal sets -/
 
 /-- `MIN_SET` of a nonempty set is nonempty: `ℕ` is well-ordered. -/
-theorem minSet_nonempty {α : Type*} {X : Set α} (f : α → ℕ) (h : X.Nonempty) :
+private lemma minSet_nonempty {α : Type*} {X : Set α} (f : α → ℕ) (h : X.Nonempty) :
     (MinSet X f).Nonempty := by
   obtain ⟨x, hx, hfx⟩ := Nat.sInf_mem (h.image f)
   exact ⟨x, hx, fun y hy => hfx ▸ Nat.sInf_le ⟨y, hy, rfl⟩⟩
 
 /-- `MAX_SET` of a nonempty, bounded set is nonempty.  Meyer's finiteness side
 condition in another form. -/
-theorem maxSet_nonempty {α : Type*} {X : Set α} (f : α → ℕ) (h : X.Nonempty)
+private lemma maxSet_nonempty {α : Type*} {X : Set α} (f : α → ℕ) (h : X.Nonempty)
     (hb : BddAbove (f '' X)) : (MaxSet X f).Nonempty := by
   obtain ⟨x, hx, hfx⟩ := Nat.sSup_mem (h.image f) hb
   exact ⟨x, hx, fun y hy => hfx ▸ le_csSup hb ⟨y, hy, rfl⟩⟩
 
 /-- `COMPACTED (a)` is never empty: `[]` is always a member of `SINGLE_BREAKS`,
 and lengths are bounded by `a`'s. -/
-theorem compacted_nonempty (a : Text) : (Compacted a).Nonempty := by
+lemma compacted_nonempty (a : Text) : (Compacted a).Nonempty := by
   refine maxSet_nonempty _ ⟨[], (List.nil_sublist a), by simp [NoDoubleBreak]⟩ ⟨a.length, ?_⟩
   rintro n ⟨y, hy, rfl⟩
   exact hy.1.length_le
 
 /-- Being in the domain is exactly having something reachable: `FEWEST_LINES`
 never empties a nonempty set. -/
-theorem mem_domGoal_iff (MAXPOS : ℕ) (i : Text) :
+lemma mem_domGoal_iff (MAXPOS : ℕ) (i : Text) :
     i ∈ DomGoal MAXPOS ↔ (Transf MAXPOS i).Nonempty := by
   constructor
   · rintro ⟨o, ho, -⟩
@@ -203,10 +202,10 @@ precisely when no word is too long, and `FEWEST_LINES` then only has to be
 nonempty rather than computed. -/
 
 /-- Replace every break character by a newline. -/
-def allNewlines (b : Text) : Text :=
+private def allNewlines (b : Text) : Text :=
   b.map fun c => if IsBreak c then newline else c
 
-theorem mem_equivalent_allNewlines (b : Text) : allNewlines b ∈ Equivalent b := by
+private lemma mem_equivalent_allNewlines (b : Text) : allNewlines b ∈ Equivalent b := by
   rw [Equivalent, Set.mem_setOf_eq, allNewlines, List.forall₂_map_left_iff,
     List.forall₂_same]
   intro x _
@@ -215,7 +214,7 @@ theorem mem_equivalent_allNewlines (b : Text) : allNewlines b ∈ Equivalent b :
   · exact Or.inl (by simp only [if_neg hx])
 
 /-- An infix of a mapped list comes from an infix of the original. -/
-theorem infix_map_exists {α β : Type*} {f : α → β} {t : List β} {b : List α}
+private lemma infix_map_exists {α β : Type*} {f : α → β} {t : List β} {b : List α}
     (h : t.IsInfix (b.map f)) : ∃ t' : List α, t'.IsInfix b ∧ t'.map f = t := by
   obtain ⟨l, r, hlr⟩ := h
   obtain ⟨b₁, b₂, rfl, h₁, -⟩ := List.map_eq_append_iff.1 hlr.symm
@@ -224,7 +223,7 @@ theorem infix_map_exists {α β : Type*} {f : α → β} {t : List β} {b : List
 
 /-- With every break turned into a newline, each line is a single word, so the
 longest line is the longest word. -/
-theorem maxLineLength_allNewlines_le {b : Text} {MAXPOS : ℕ}
+private lemma maxLineLength_allNewlines_le {b : Text} {MAXPOS : ℕ}
     (h : b ∈ NoOversizeWord MAXPOS) : maxLineLength (allNewlines b) ≤ MAXPOS := by
   refine maxLineLength_le ?_
   intro t ht hn
@@ -243,7 +242,7 @@ theorem maxLineLength_allNewlines_le {b : Text} {MAXPOS : ℕ}
     exact hnb c (List.mem_of_mem_take hc) hbc
 
 /-- If no word of `b` is too long then something is reachable from `b`. -/
-theorem trimmed_nonempty {b : Text} {MAXPOS : ℕ} (h : b ∈ NoOversizeWord MAXPOS) :
+lemma trimmed_nonempty {b : Text} {MAXPOS : ℕ} (h : b ∈ NoOversizeWord MAXPOS) :
     (Trimmed MAXPOS b).Nonempty :=
   ⟨allNewlines b, mem_equivalent_allNewlines b, maxLineLength_allNewlines_le h⟩
 

@@ -53,12 +53,12 @@ translation from `List.Sublist` to index sequences, which nothing here requires;
 it is stated as an expectation, not a result.
 -/
 
-namespace Meyer.Literal
+namespace Meyer.Bug
 
 open Meyer
 
 /-- A list of copies of `a` is a chain for any relation `R` with `R a a`. -/
-theorem isChain_replicate {α : Type*} {R : α → α → Prop} {a : α} (h : R a a) (n : ℕ) :
+private lemma isChain_replicate {α : Type*} {R : α → α → Prop} {a : α} (h : R a a) (n : ℕ) :
     (List.replicate n a).IsChain R := by
   induction n with
   | zero => simp
@@ -122,7 +122,7 @@ def DomGoal : Set Text :=
 member of `SINGLE_BREAKS (a)`: it is a subsequence under the literal reading
 (repeat that one position), and it contains no break characters at all, so
 certainly no two adjacent ones. -/
-theorem replicate_mem_singleBreaks {a : Text} {p : ℕ} {c : Char}
+lemma replicate_mem_singleBreaks {a : Text} {p : ℕ} {c : Char}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) (n : ℕ) :
     List.replicate n c ∈ SingleBreaks a := by
   constructor
@@ -133,7 +133,7 @@ theorem replicate_mem_singleBreaks {a : Text} {p : ℕ} {c : Char}
 /-- **`COMPACTED` collapses.**  If `a` contains a non-break character then
 `SINGLE_BREAKS (a)` has members of every length, so no member is longest and the
 set of longest members is empty. -/
-theorem compacted_eq_empty {a : Text} {p : ℕ} {c : Char}
+lemma compacted_eq_empty {a : Text} {p : ℕ} {c : Char}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
     Compacted a = ∅ := by
   ext x
@@ -145,7 +145,7 @@ theorem compacted_eq_empty {a : Text} {p : ℕ} {c : Char}
 
 /-- With `COMPACTED (a)` empty there is no `b` with `short_breaks (a, b)`, so
 nothing is reachable from `a` at all. -/
-theorem transf_eq_empty {a : Text} {p : ℕ} {c : Char}
+lemma transf_eq_empty {a : Text} {p : ℕ} {c : Char}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
     Transf MAXPOS a = ∅ := by
   ext x
@@ -156,12 +156,12 @@ theorem transf_eq_empty {a : Text} {p : ℕ} {c : Char}
 
 /-- Hence `a` is outside the domain of the specification, however innocuous `a`
 is. -/
-theorem not_mem_domGoal {a : Text} {p : ℕ} {c : Char}
+lemma not_mem_domGoal {a : Text} {p : ℕ} {c : Char}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
     a ∉ DomGoal MAXPOS := by
-  rintro ⟨o, ⟨b, hb, -⟩, -⟩
-  rw [ShortBreaks, compacted_eq_empty hp hc] at hb
-  exact hb
+  rintro ⟨o, ho, -⟩
+  rw [transf_eq_empty MAXPOS hp hc] at ho
+  exact ho
 
 /-! ## The conflict
 
@@ -174,7 +174,7 @@ i.e. that the problem is solvable exactly for texts with no word longer than
 
 /-- A single letter is a text with no oversize word, for any `MAXPOS ≥ 1`: its
 only infixes have length `0` and `1`, and neither is `MAXPOS + 1`. -/
-theorem singleton_mem_noOversizeWord (h : 1 ≤ MAXPOS) :
+lemma singleton_mem_noOversizeWord (h : 1 ≤ MAXPOS) :
     ['h'] ∈ NoOversizeWord MAXPOS := by
   intro t ht hlen
   have := ht.length_le
@@ -194,4 +194,4 @@ theorem domGoal_ne_noOversizeWord (h : 1 ≤ MAXPOS) :
     not_mem_domGoal MAXPOS (p := 0) (c := 'h') rfl (by decide)
   exact hout (hEq ▸ hin)
 
-end Meyer.Literal
+end Meyer.Bug

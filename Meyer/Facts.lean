@@ -41,15 +41,15 @@ private def wOut₁ : Text := ['a', '\n', 'b', ' ', 'c']
 /-- The other: break at the second blank. -/
 private def wOut₂ : Text := ['a', ' ', 'b', '\n', 'c']
 
-private theorem wIn_noDoubleBreak : NoDoubleBreak wIn := by decide
+private lemma wIn_noDoubleBreak : NoDoubleBreak wIn := by decide
 
-private theorem wIn_mem_compacted : wIn ∈ Compacted wIn :=
+private lemma wIn_mem_compacted : wIn ∈ Compacted wIn :=
   mem_compacted_self wIn_noDoubleBreak
 
 /-- Anything reachable from `a b c` has its length: `COMPACTED` preserves it
 because `a b c` already has single breaks, and `EQUIVALENT` preserves it by
 definition. -/
-private theorem length_of_mem_transf {y : Text} (hy : y ∈ Transf 3 wIn) :
+private lemma length_of_mem_transf {y : Text} (hy : y ∈ Transf 3 wIn) :
     y.length = 5 := by
   obtain ⟨b, hb, hEquiv, -⟩ := hy
   have hb5 : b.length = 5 := length_eq_of_mem_compacted wIn_noDoubleBreak hb
@@ -57,7 +57,7 @@ private theorem length_of_mem_transf {y : Text} (hy : y ∈ Transf 3 wIn) :
 
 /-- Every acceptable output has at least one newline: without one it would be a
 single line of five characters, and `MAXPOS` is three. -/
-private theorem one_le_newlines {y : Text} (hy : y ∈ Transf 3 wIn) :
+private lemma one_le_newlines {y : Text} (hy : y ∈ Transf 3 wIn) :
     1 ≤ numberOfNewLines y := by
   by_contra hcon
   have hzero : numberOfNewLines y = 0 := by omega
@@ -67,14 +67,14 @@ private theorem one_le_newlines {y : Text} (hy : y ∈ Transf 3 wIn) :
   have := length_le_maxLineLength_of_no_newline hnot
   omega
 
-private theorem goal_wOut₁ : Goal 3 wIn wOut₁ := by
+private lemma goal_wOut₁ : Goal 3 wIn wOut₁ := by
   refine ⟨⟨wIn, wIn_mem_compacted, by decide, maxLineLength_le_of_tails (by decide)⟩, ?_⟩
   intro y hy
   have : numberOfNewLines wOut₁ = 1 := by decide
   rw [this]
   exact one_le_newlines hy
 
-private theorem goal_wOut₂ : Goal 3 wIn wOut₂ := by
+private lemma goal_wOut₂ : Goal 3 wIn wOut₂ := by
   refine ⟨⟨wIn, wIn_mem_compacted, by decide, maxLineLength_le_of_tails (by decide)⟩, ?_⟩
   intro y hy
   have : numberOfNewLines wOut₂ = 1 := by decide
@@ -113,7 +113,7 @@ The rest is short:
   which follows from the well-ordering of `ℕ`; it does not have to be computed.
 
 Neither step is a defect in the paper, unlike the subsequence definition handled
-in `Meyer.Literal`.  Both of Meyer's claims here are true, and both are now
+in `Meyer.Bug`.  Both of Meyer's claims here are true, and both are now
 proved. -/
 
 variable (MAXPOS : ℕ)
@@ -122,7 +122,7 @@ variable (MAXPOS : ℕ)
 `COMPACTED (i)` is just `{i}`, so the argument runs without the retention lemma:
 a break-free stretch of `i` survives into any equivalent text, and a stretch of
 `MAXPOS + 1` characters would then be a line longer than `MAXPOS`. -/
-theorem domGoal_subset_noOversizeWord_of_noDoubleBreak {i : Text} (h : NoDoubleBreak i)
+private lemma domGoal_subset_noOversizeWord_of_noDoubleBreak {i : Text} (h : NoDoubleBreak i)
     (hi : i ∈ DomGoal MAXPOS) : i ∈ NoOversizeWord MAXPOS := by
   obtain ⟨o, ⟨b, hb, hEquiv, hMax⟩, -⟩ := hi
   rw [eq_of_mem_compacted h hb] at hEquiv
@@ -136,7 +136,7 @@ theorem domGoal_subset_noOversizeWord_of_noDoubleBreak {i : Text} (h : NoDoubleB
 /-- **The `⊇` direction, for inputs whose breaks are already single.**  Put every
 word on a line of its own.  That is acceptable precisely because no word is
 longer than `MAXPOS`, and `FEWEST_LINES` only has to be nonempty. -/
-theorem noOversizeWord_subset_domGoal_of_noDoubleBreak {i : Text} (h : NoDoubleBreak i)
+private lemma noOversizeWord_subset_domGoal_of_noDoubleBreak {i : Text} (h : NoDoubleBreak i)
     (hi : i ∈ NoOversizeWord MAXPOS) : i ∈ DomGoal MAXPOS := by
   rw [mem_domGoal_iff]
   obtain ⟨c, hc⟩ := trimmed_nonempty hi

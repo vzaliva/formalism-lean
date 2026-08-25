@@ -196,7 +196,11 @@ acceptable solution (those not in the domain of `goal`), so `sol` may be a
 partial function" -- which is why the implementation is modelled here as
 `Text → Option Text` rather than `Text → Text`. -/
 
-/-- Meyer's correctness conditions, `dom (goal) ⊆ dom (sol)` and `sol ⊆ goal`. -/
+/-- Meyer's correctness conditions, `dom (goal) ⊆ dom (sol)` and `sol ⊆ goal`.
+
+Nothing below uses this.  It is part of the transcription rather than of any
+proof: it records what Meyer demands of an implementation, and this development
+supplies no implementation to demand it of. -/
 def IsCorrect (sol : Text → Option Text) : Prop :=
   (∀ i ∈ DomGoal MAXPOS, (sol i).isSome) ∧
   (∀ i o, sol i = some o → Goal MAXPOS i o)
