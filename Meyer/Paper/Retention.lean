@@ -1,10 +1,10 @@
-import Meyer.Lemmas
+import Meyer.Paper.Lemmas
 
 /-!
 # Retention: compacting a text does not change its words
 
 The one step Meyer asserts without proof, and the only thing standing between the
-specification of `Meyer.Spec` and his theorem on the domain of `goal`.
+specification of `Meyer.Paper.Spec` and his theorem on the domain of `goal`.
 
 Meyer's entire justification is one parenthetical remark:
 
@@ -41,7 +41,7 @@ is consumed only by the non-break retention step, and that step always has the
 unconstrained invariant available.
 -/
 
-namespace Meyer
+namespace Meyer.Paper
 
 /-! ## Words and heads -/
 
@@ -238,11 +238,11 @@ theorem sameWords_of_mem_compacted {a b : Text} (hb : b ∈ Compacted a) : SameW
 /-- **The one step Meyer asserts without proof.**  Compacting a text does not
 change its words, so a compaction of `a` has an oversize word exactly when `a`
 does. -/
-theorem mem_noOversizeWord_compacted_iff (MAXPOS : ℕ) {a b : Text} (hb : b ∈ Compacted a) :
+lemma mem_noOversizeWord_compacted_iff (MAXPOS : ℕ) {a b : Text} (hb : b ∈ Compacted a) :
     b ∈ NoOversizeWord MAXPOS ↔ a ∈ NoOversizeWord MAXPOS := by
   have hw : SameWords a b := sameWords_of_mem_compacted hb
   rw [mem_noOversizeWord_iff, mem_noOversizeWord_iff]
   exact ⟨fun h t ht hbf => h t ((hw t hbf).1 ht) hbf,
          fun h t ht hbf => h t ((hw t hbf).2 ht) hbf⟩
 
-end Meyer
+end Meyer.Paper

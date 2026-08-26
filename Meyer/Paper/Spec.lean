@@ -1,7 +1,6 @@
 import Mathlib.Data.List.Chain
 import Mathlib.Data.List.Forall2
-import Mathlib.Data.List.Infix
-import Mathlib.Data.Nat.Lattice
+import Meyer.Common
 
 /-!
 # Meyer's formal specification of the text-formatting problem
@@ -22,7 +21,7 @@ Gerhart:
 
 This module contains the **specification only**.  There is no implementation; the
 intent is that it stands alone as a faithful rendering of Meyer's paper, against
-which any other treatment of the problem can later be shown equivalent.
+which any other treatment of the problem can later be compared.
 
 ## Structure
 
@@ -34,20 +33,26 @@ short_breaks (r)  ->  limited_length (r)  ->  FEWEST_LINES (f)
 
 and defines `goal (i, o)` to hold exactly when `o ∈ FEWEST_LINES (TRANSF (i))`.
 The names below follow his, with `CamelCase` for `Set`- and `Prop`-valued
-definitions as is usual in Lean.
+definitions as is usual in Lean.  `Text`, `blank`, `newline`, `IsBreak`,
+`MaxSet`, `MinSet` and `maxRun` are shared with the transcription of his 2022
+book chapter and live in `Meyer.Common`.
 
 ## Deviations from the paper
 
 * Meyer keeps `CHAR` abstract, noting that "the only property of CHAR that
   matters here is that CHAR contains two elements of particular interest,
-  `blank` and `new_line`".  We instantiate it at `Char`, which costs nothing and
-  makes the specification concrete.
+  `blank` and `new_line`".  We instantiate it at `Char`, so what follows is a
+  concrete model of the specification rather than the abstract transcription:
+  nothing below uses any property of `Char` beyond decidable equality and
+  `blank ≠ newline`, but the results are proved for that one alphabet and not
+  for an arbitrary one.
 
 * Meyer defines a subsequence of `s` as `s ∘ u` for `u` a *sorted* sequence of
   indices, where sorted means `u (i-1) ≤ u (i)`.  Taken literally the
-  non-strict inequality permits an index to repeat, which would make
-  `SINGLE_BREAKS` unbounded and `MAX_SET` undefined; strictly increasing is
-  plainly intended, and that is exactly `List.Sublist`.  `Meyer.Bug` formalises
+  non-strict inequality permits an index to repeat, which makes `SINGLE_BREAKS`
+  unbounded for any input containing a non-break character, and `MAX_SET`
+  undefined there; strictly increasing is plainly intended, and that is exactly
+  `List.Sublist`.  `Meyer.Paper.Bug` formalises
   the literal reading and proves it incompatible with his domain theorem.
 
 * `MAX_SET` and `MIN_SET` are rendered as "no element of the set does better",
@@ -56,40 +61,7 @@ definitions as is usual in Lean.
   that it holds at the one place he needs it.
 -/
 
-namespace Meyer
-
-/-! ## Characters and texts -/
-
-/-- Meyer's `seq [CHAR]`, used for both `INPUT` and `OUTPUT`.  He notes that
-describing the output as `seq [LINE]` was available and chose not to. -/
-abbrev Text := List Char
-
-/-- Meyer's `blank`. -/
-def blank : Char := ' '
-
-/-- Meyer's `new_line`. -/
-def newline : Char := '\n'
-
-/-- `BREAK_CHAR ≜ {blank, new_line}`. -/
-def IsBreak (c : Char) : Prop := c = blank ∨ c = newline
-
-instance : DecidablePred IsBreak :=
-  fun c => inferInstanceAs (Decidable (c = blank ∨ c = newline))
-
-/-! ## Extremal subsets
-
-`MAX_SET (X, f)` and `MIN_SET (X, f)`.  Meyer stresses that these yield a
-*subset* of `X` rather than a single element, "since there may be more than one
-element with minimum or maximum `f` value" -- the source of the specification's
-nondeterminism. -/
-
-/-- `MAX_SET (X, f)`: the elements of `X` at which `f` attains its maximum. -/
-def MaxSet {α : Type*} (X : Set α) (f : α → ℕ) : Set α :=
-  {x ∈ X | ∀ y ∈ X, f y ≤ f x}
-
-/-- `MIN_SET (X, f)`: the elements of `X` at which `f` attains its minimum. -/
-def MinSet {α : Type*} (X : Set α) (f : α → ℕ) : Set α :=
-  {x ∈ X | ∀ y ∈ X, f x ≤ f y}
+namespace Meyer.Paper
 
 /-! ## Short breaks
 
@@ -137,11 +109,14 @@ def Equivalent (b : Text) : Set Text :=
 maximum number of consecutive characters, none of which is a new line".
 
 Note the asymmetry with `IsBreak`: only `newline` terminates a line, so blanks
-count towards a line's length.  A stretch of consecutive characters is an infix,
-and the set below is nonempty (it contains `0`, witnessed by `[]`) and bounded
-above by `s.length`, so the supremum is the maximum Meyer intends. -/
+count towards a line's length.  This is Meyer's, not an oversight.
+
+A stretch of consecutive characters is an infix, so this is `maxRun` at the
+predicate "is not a new line"; `Meyer.Common` discharges there, once, that the
+set has a maximum.  The book's `maxline` (M5) is the same function, which is why
+`Meyer.Book` reuses this definition rather than restating it. -/
 noncomputable def maxLineLength (s : Text) : ℕ :=
-  sSup {n | ∃ t : Text, t.IsInfix s ∧ newline ∉ t ∧ t.length = n}
+  maxRun (fun c => c ≠ newline) s
 
 /-- `number_of_new_lines (s) ≜ card {i | s (i) = new_line}`. -/
 def numberOfNewLines (s : Text) : ℕ :=
@@ -220,7 +195,7 @@ def NoOversizeWord : Set Text :=
 /-!
 Meyer's two claims about this specification -- that its domain is exactly
 `NoOversizeWord`, and that it is genuinely nondeterministic -- are stated and
-proved in `Meyer.Facts`.  This module is definitions only.
+proved in `Meyer.Paper.Facts`.  This module is definitions only.
 -/
 
-end Meyer
+end Meyer.Paper

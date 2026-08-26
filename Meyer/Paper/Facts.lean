@@ -1,9 +1,9 @@
-import Meyer.Retention
+import Meyer.Paper.Retention
 
 /-!
 # Meyer's two claims about his specification
 
-`Meyer.Spec` transcribes the specification; this module proves the two things
+`Meyer.Paper.Spec` transcribes the specification; this module proves the two things
 Meyer asserts about it.  Both hold.
 
 * `goal_not_functional` -- the specification is genuinely nondeterministic.
@@ -15,7 +15,7 @@ The second follows Meyer's own derivation sentence by sentence, with
 takes silently.
 -/
 
-namespace Meyer
+namespace Meyer.Paper
 
 /-! ## The specification is nondeterministic
 
@@ -112,11 +112,11 @@ them in order.
    the *compacted* text `b`; sentence 3 is about the *input*.  Passing from one
    to the other needs to know that compaction leaves the words alone, which
    Meyer asserted a page earlier in a parenthetical remark and did not prove; it
-   is `Meyer.Retention`.  That `FEWEST_LINES` does not empty a nonempty set is
+   is `Meyer.Paper.Retention`.  That `FEWEST_LINES` does not empty a nonempty set is
    `mem_domGoal_iff`.
 
 Neither step is a defect in the paper, unlike the subsequence definition handled
-in `Meyer.Bug`. -/
+in `Meyer.Paper.Bug`. -/
 
 variable (MAXPOS : ℕ)
 
@@ -142,4 +142,4 @@ theorem domGoal_eq_noOversizeWord : DomGoal MAXPOS = NoOversizeWord MAXPOS := by
       (trimmed_nonempty_iff MAXPOS b).2 ((mem_noOversizeWord_compacted_iff MAXPOS hb).2 hi)
     exact ⟨c, b, hb, hc⟩
 
-end Meyer
+end Meyer.Paper

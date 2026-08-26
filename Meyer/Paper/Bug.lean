@@ -1,14 +1,14 @@
-import Meyer.Spec
+import Meyer.Paper.Spec
 
 /-!
 # Meyer's subsequence definition, read literally
 
-`Meyer/Spec.lean` transcribes Meyer's specification using `List.Sublist` for
+`Meyer/Paper/Spec.lean` transcribes Meyer's specification using `List.Sublist` for
 "subsequence", on the grounds that this is plainly what he means.  This module
 justifies that choice, by formalising what he actually *writes* and showing it
 cannot be what he means.
 
-## The slip
+## The defect
 
 Meyer defines a subsequence of `s` as `s ∘ u`, where `u` is a **sorted** sequence
 of natural numbers -- a list of positions, looked up in `s` in order.  Sorted he
@@ -20,7 +20,7 @@ with a non-strict `≤`.  So `u` may repeat a position.  Under his own example
 `s = <a b a a b d c d>` the index sequence `<3 3 3 3>` is sorted, and therefore
 `<a a a a>` is a "subsequence" of `s` -- as is a run of a thousand `a`s.
 
-His informal gloss in the main text -- "a sequence made of zero or more of the
+His description in the main text -- "a sequence made of zero or more of the
 elements of `s`, in the same order as in `s`" -- is correct.  It is the formal
 definition beside it that admits repetition.
 
@@ -28,13 +28,41 @@ definition beside it that admits repetition.
 
 `COMPACTED (a)` is defined as the *longest* members of `SINGLE_BREAKS (a)`.  If
 `a` contains any non-break character, repetition supplies members of every
-length, so there is no longest one and `COMPACTED (a)` is empty.  Everything
-downstream is built on it, so `goal` relates nothing to anything.
+length, so there is no longest one.
 
-That contradicts Meyer's own theorem, proved two pages later, that `dom (goal)`
-is exactly the set of texts containing no word longer than `MAXPOS`.  Under the
-literal reading that theorem is false, which is what
-`domGoal_ne_noOversizeWord` below establishes.  Strictly increasing is therefore
+Meyer is careful about exactly this.  He says of `MAX_SET` that it "is not always
+defined; we have to be careful to apply it only to sets `X` which are finite",
+and he discharges the condition where he needs it: "`MAX_SET (X, f)` may be
+undefined if `X` is an infinite set.  This cannot occur here, however, since
+`SINGLE_BREAKS (a)` is a subset of `SUBSEQUENCES (a)` which, for any sequence of
+characters `a`, is finite."
+
+Under the literal reading that last sentence is false for every non-empty `a`:
+repeating one position supplies `SUBSEQUENCES (a)` with members of every length.
+So the argument Meyer gives for the side condition does not work.
+
+Whether the side condition itself fails is a further question, and the answer
+depends on `a`.  `SINGLE_BREAKS (a)` is cut out of `SUBSEQUENCES (a)` by
+`NoDoubleBreak`, which forbids two adjacent break characters and so blocks the
+repetition of a break.  On an empty or an all-separator input it therefore stays
+finite, and `COMPACTED (a)` is defined after all, despite sitting inside an
+infinite superset.  It is when `a` contains a character that is *not* a break
+that repetition survives the filter, `SINGLE_BREAKS (a)` is unbounded, and
+`COMPACTED (a)` falls outside `MAX_SET`'s domain.
+
+`MAX_SET` is partial in the paper and total here: `Meyer.MaxSet` reads "no member
+does better", which agrees with Meyer on finite sets, agrees with him on empty
+ones (he notes that `MIN_SET` and `MAX_SET` "are defined for empty sets"), and
+returns `∅` where he would leave the value undefined.  So what is proved below is
+a statement about that completion.  Nothing turns on the choice: undefined and
+empty are both fatal, and each contradicts the domain theorem.
+
+That much is already fatal.  Meyer's theorem, proved two pages later, says
+`dom (goal)` is exactly the set of texts containing no word longer than `MAXPOS`.
+For any `MAXPOS ≥ 1` the one-letter text `"h"` is such a text and has no output,
+which is what `domGoal_ne_noOversizeWord` below establishes.  Inputs without a
+word in them are untouched, and so is the whole specification at `MAXPOS = 0`,
+where no text with a letter in it is claimed to be solvable.  Strictly increasing is therefore
 forced, not merely preferable.
 
 ## What is and is not claimed
@@ -46,9 +74,9 @@ non-decreasing one (`singleBreaks_subset`), so the defect adds junk to
 `SINGLE_BREAKS` and removes nothing.  It is the junk that does the damage.
 -/
 
-namespace Meyer.Bug
+namespace Meyer.Paper.Bug
 
-open Meyer
+open Meyer.Paper
 
 /-- **Meyer's definition of subsequence, taken literally.**  `t = s ∘ u` for some
 sequence `u` of positions that is sorted in his sense, i.e. non-decreasing.
@@ -68,7 +96,8 @@ example : SublistWithRepeats ['a', 'a', 'a'] ['x', 'a', 'y'] :=
 /-- Every genuine sublist is a subsequence in the literal sense too: it is
 `s ∘ u` for a strictly increasing `u`, and strictly increasing is in particular
 non-decreasing. -/
-lemma sublistWithRepeats_of_sublist {t s : Text} (h : t.Sublist s) : SublistWithRepeats t s := by
+private lemma sublistWithRepeats_of_sublist {t s : Text} (h : t.Sublist s) :
+    SublistWithRepeats t s := by
   obtain ⟨u, rfl, hu⟩ := List.sublist_eq_map_getElem h
   refine ⟨u.map Fin.val, (hu.map Fin.val fun _ _ hab => Nat.le_of_lt hab).isChain, ?_⟩
   rw [List.map_map, List.map_map]
@@ -85,7 +114,7 @@ def SingleBreaks (a : Text) : Set Text :=
   {s | SublistWithRepeats s a ∧ NoDoubleBreak s}
 
 /-- The literal reading only enlarges `SINGLE_BREAKS`. -/
-lemma singleBreaks_subset (a : Text) : Meyer.SingleBreaks a ⊆ SingleBreaks a :=
+theorem singleBreaks_subset (a : Text) : Meyer.Paper.SingleBreaks a ⊆ SingleBreaks a :=
   fun _ hs => ⟨sublistWithRepeats_of_sublist hs.1, hs.2⟩
 
 /-- `COMPACTED (a)` under the literal reading. -/
@@ -116,7 +145,7 @@ def DomGoal : Set Text :=
 member of `SINGLE_BREAKS (a)`: it is a subsequence under the literal reading
 (repeat that one position), and it contains no break characters at all, so
 certainly no two adjacent ones. -/
-lemma replicate_mem_singleBreaks {a : Text} {p : ℕ} {c : Char}
+private lemma replicate_mem_singleBreaks {a : Text} {p : ℕ} {c : Char}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) (n : ℕ) :
     List.replicate n c ∈ SingleBreaks a := by
   constructor
@@ -125,9 +154,12 @@ lemma replicate_mem_singleBreaks {a : Text} {p : ℕ} {c : Char}
   · exact List.isChain_replicate_of_rel n fun h => absurd h hc
 
 /-- **`COMPACTED` collapses.**  If `a` contains a non-break character then
-`SINGLE_BREAKS (a)` has members of every length, so no member is longest and the
-set of longest members is empty. -/
-lemma compacted_eq_empty {a : Text} {p : ℕ} {c : Char}
+`SINGLE_BREAKS (a)` has members of every length, so no member is longest.
+
+In Meyer's own terms this is the failure of `MAX_SET`'s finiteness side
+condition, and `COMPACTED (a)` has no value at all.  `Meyer.MaxSet` totalises
+`MAX_SET` as "no member does better", under which the value is `∅`. -/
+theorem compacted_eq_empty {a : Text} {p : ℕ} {c : Char}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
     Compacted a = ∅ := by
   ext x
@@ -139,7 +171,7 @@ lemma compacted_eq_empty {a : Text} {p : ℕ} {c : Char}
 
 /-- With `COMPACTED (a)` empty there is no `b` with `short_breaks (a, b)`, so
 nothing is reachable from `a` at all. -/
-lemma transf_eq_empty {a : Text} {p : ℕ} {c : Char}
+private lemma transf_eq_empty {a : Text} {p : ℕ} {c : Char}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
     Transf MAXPOS a = ∅ := by
   ext x
@@ -150,7 +182,7 @@ lemma transf_eq_empty {a : Text} {p : ℕ} {c : Char}
 
 /-- Hence `a` is outside the domain of the specification, however innocuous `a`
 is. -/
-lemma not_mem_domGoal {a : Text} {p : ℕ} {c : Char}
+private lemma not_mem_domGoal {a : Text} {p : ℕ} {c : Char}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
     a ∉ DomGoal MAXPOS := by
   rintro ⟨o, ho, -⟩
@@ -168,7 +200,7 @@ i.e. that the problem is solvable exactly for texts with no word longer than
 
 /-- A single letter is a text with no oversize word, for any `MAXPOS ≥ 1`: its
 only infixes have length `0` and `1`, and neither is `MAXPOS + 1`. -/
-lemma singleton_mem_noOversizeWord (h : 1 ≤ MAXPOS) :
+private lemma singleton_mem_noOversizeWord (h : 1 ≤ MAXPOS) :
     ['h'] ∈ NoOversizeWord MAXPOS := by
   intro t ht hlen
   have := ht.length_le
@@ -188,4 +220,4 @@ theorem domGoal_ne_noOversizeWord (h : 1 ≤ MAXPOS) :
     not_mem_domGoal MAXPOS (p := 0) (c := 'h') rfl (by decide)
   exact hout (hEq ▸ hin)
 
-end Meyer.Bug
+end Meyer.Paper.Bug

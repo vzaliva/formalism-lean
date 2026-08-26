@@ -1,21 +1,19 @@
-import Meyer.Spec
+import Meyer.Paper.Spec
 
 /-!
 # Basic API for Meyer's specification
 
-Lemmas about the definitions in `Meyer.Spec` that are not themselves claims of
-the paper.  `Meyer.Retention` and `Meyer.Facts` use them to establish Meyer's
+Lemmas about the definitions in `Meyer.Paper.Spec` that are not themselves claims of
+the paper.  `Meyer.Paper.Retention` and `Meyer.Paper.Facts` use them to establish Meyer's
 assertions about the specification.
 
-The main content is a workable interface to `maxLineLength`, which is defined as
-a supremum over a set and so needs its nonemptiness and boundedness discharged
-before anything can be said about it, plus a reformulation
-(`maxLineLength_le_of_tails`) under which concrete cases fall to `decide`.  The
-module ends with the two halves of Meyer's remark that `TRIMMED (b)` is nonempty
-exactly when `b` has no oversize word.
+The main content is the specialisation of `Meyer.Common.maxRun` to newline-free
+runs, including a reformulation (`maxLineLength_le_of_tails`) under which
+concrete cases fall to `decide`.  The module ends with the two halves of Meyer's
+remark that `TRIMMED (b)` is nonempty exactly when `b` has no oversize word.
 -/
 
-namespace Meyer
+namespace Meyer.Paper
 
 /-! ## Decidability
 
@@ -35,56 +33,33 @@ instance : DecidableRel (fun x y : Char => x = y ∨ (IsBreak x ∧ IsBreak y)) 
 instance (b s : Text) : Decidable (s ∈ Equivalent b) :=
   inferInstanceAs (Decidable (List.Forall₂ _ s b))
 
-/-! ## Infixes -/
+/-! ## `maxLineLength`
 
-/-- Every infix is a prefix of a suffix, so quantifying over the infixes of a
-concrete list is a bounded, and therefore decidable, quantification. -/
-private lemma infix_iff_mem_tails_inits {α : Type*} (t s : List α) :
-    t.IsInfix s ↔ ∃ u ∈ s.tails, t ∈ u.inits := by
-  simp only [List.infix_iff_prefix_suffix, List.mem_tails, List.mem_inits]
-  exact exists_congr fun _ => and_comm
+`Meyer.Common.maxRun` carries the work; these are the specialisations to
+newline-free runs, kept under the names the rest of the development uses and in
+Meyer's `newline ∉ t` phrasing. -/
 
-/-! ## `maxLineLength` -/
-
-/-- The set `maxLineLength` takes the supremum of.  Naming it lets its
-nonemptiness and boundedness be discharged once, below, instead of at every
-use.  Meyer takes visible care over exactly this point (the box "The reasoning
-behind formal specifications"): his `LINE_LENGTHS` is arranged so that it always
-contains `0`, "even if `s` is an empty sequence". -/
-private def lineLengths (s : Text) : Set ℕ :=
-  {n | ∃ t : Text, t.IsInfix s ∧ newline ∉ t ∧ t.length = n}
-
-/-- `0` is always the length of a newline-free infix, namely `[]`. -/
-private lemma lineLengths_nonempty (s : Text) : (lineLengths s).Nonempty :=
-  ⟨0, [], List.nil_infix, by simp, rfl⟩
-
-/-- No infix is longer than the list it sits in. -/
-private lemma lineLengths_bddAbove (s : Text) : BddAbove (lineLengths s) := by
-  refine ⟨s.length, ?_⟩
-  rintro n ⟨t, ht, -, rfl⟩
-  exact ht.length_le
+private lemma not_mem_iff_forall_ne {t : Text} : newline ∉ t ↔ ∀ c ∈ t, c ≠ newline := by
+  simp only [ne_eq]
+  exact ⟨fun h c hc hcn => h (hcn ▸ hc), fun h hn => h newline hn rfl⟩
 
 /-- Every newline-free infix is at most as long as the longest line. -/
-lemma le_maxLineLength {s t : Text} (ht : t.IsInfix s) (hn : newline ∉ t) :
+private lemma le_maxLineLength {s t : Text} (ht : t.IsInfix s) (hn : newline ∉ t) :
     t.length ≤ maxLineLength s :=
-  le_csSup (lineLengths_bddAbove s) ⟨t, ht, hn, rfl⟩
+  le_maxRun ht (not_mem_iff_forall_ne.1 hn)
 
 /-- To bound the longest line it suffices to bound every newline-free infix. -/
-lemma maxLineLength_le {s : Text} {N : ℕ}
+private lemma maxLineLength_le {s : Text} {N : ℕ}
     (h : ∀ t : Text, t.IsInfix s → newline ∉ t → t.length ≤ N) :
-    maxLineLength s ≤ N := by
-  refine csSup_le (lineLengths_nonempty s) ?_
-  rintro n ⟨t, ht, hn, rfl⟩
-  exact h t ht hn
+    maxLineLength s ≤ N :=
+  maxRun_le fun t ht hp => h t ht (not_mem_iff_forall_ne.2 hp)
 
 /-- The form used on concrete texts: the quantification is bounded, so `decide`
 can discharge it. -/
 lemma maxLineLength_le_of_tails {s : Text} {N : ℕ}
     (h : ∀ u ∈ s.tails, ∀ t ∈ u.inits, newline ∉ t → t.length ≤ N) :
-    maxLineLength s ≤ N := by
-  refine maxLineLength_le fun t ht hn => ?_
-  obtain ⟨u, hu, htu⟩ := (infix_iff_mem_tails_inits t s).1 ht
-  exact h u hu t htu hn
+    maxLineLength s ≤ N :=
+  maxRun_le_of_tails fun u hu t ht hp => h u hu t ht (not_mem_iff_forall_ne.2 hp)
 
 /-- A text with no newline at all is one long line. -/
 lemma length_le_maxLineLength_of_no_newline {s : Text} (hn : newline ∉ s) :
@@ -178,20 +153,10 @@ private lemma infix_of_mem_equivalent {b o t : Text} (ho : o ∈ Equivalent b)
   obtain ⟨o₂, o₃, rfl, -, h₃⟩ := forall₂_split h₁
   exact ⟨o₂, o₄, by rw [eq_of_forall₂_of_breakFree h₃ hb]⟩
 
-/-! ## Nonemptiness of the extremal sets -/
+/-! ## Nonemptiness
 
-/-- `MIN_SET` of a nonempty set is nonempty: `ℕ` is well-ordered. -/
-private lemma minSet_nonempty {α : Type*} {X : Set α} (f : α → ℕ) (h : X.Nonempty) :
-    (MinSet X f).Nonempty := by
-  obtain ⟨x, hx, hfx⟩ := Nat.sInf_mem (h.image f)
-  exact ⟨x, hx, fun y hy => hfx ▸ Nat.sInf_le ⟨y, hy, rfl⟩⟩
-
-/-- `MAX_SET` of a nonempty, bounded set is nonempty.  Meyer's finiteness side
-condition in another form. -/
-private lemma maxSet_nonempty {α : Type*} {X : Set α} (f : α → ℕ) (h : X.Nonempty)
-    (hb : BddAbove (f '' X)) : (MaxSet X f).Nonempty := by
-  obtain ⟨x, hx, hfx⟩ := Nat.sSup_mem (h.image f) hb
-  exact ⟨x, hx, fun y hy => hfx ▸ le_csSup hb ⟨y, hy, rfl⟩⟩
+`minSet_nonempty` and `maxSet_nonempty` are in `Meyer.Common`; both
+transcriptions need them. -/
 
 /-- `COMPACTED (a)` is never empty: `[]` is always a member of `SINGLE_BREAKS`,
 and lengths are bounded by `a`'s.  This is Meyer's "it is trivial to prove that,
@@ -260,4 +225,4 @@ lemma trimmed_nonempty {b : Text} {MAXPOS : ℕ} (h : b ∈ NoOversizeWord MAXPO
     (Trimmed MAXPOS b).Nonempty :=
   ⟨allNewlines b, mem_equivalent_allNewlines b, maxLineLength_allNewlines_le h⟩
 
-end Meyer
+end Meyer.Paper
