@@ -22,8 +22,9 @@ The problem has a long and interesting history:
   longer, and revise it again in 1977.
 - **Meyer (1985)** takes that carefully rewritten specification and exhibits six of
   his seven "sins of the specifier" in it, then gives a formal specification of his
-  own, and derives from it a theorem nobody had written down in prose: the problem
-  has no solution when the input contains a word longer than `MAXPOS`.
+  own, from which the error case follows as a theorem: the problem has no solution
+  when the input contains a word longer than `MAXPOS`. Goodenough and Gerhart had
+  stipulated that case rather than deriving it.
 - **Meyer (2022)** returns to the example and specifies it again from scratch, with
   different machinery and eight stated properties.
 
@@ -277,9 +278,10 @@ results is the author's alone.
 
 - **Naur, Peter.** "Programming by Action Clusters." *BIT* 9(3):250–258, 1969.
 - **Goodenough, John B. and Susan L. Gerhart.** "Toward a Theory of Test Data
-  Selection." *IEEE TSE* SE-1(2):156–173, 1975. Revised in *Current Trends in
-  Programming Methodology* vol. 2, Prentice-Hall, 1977, pp. 44–79, the version Meyer
-  analyses.
+  Selection." *IEEE TSE* SE-1(2):156–173, 1975; also *Proc. Int. Conf. on Reliable
+  Software*, pp. 493–510. Revised as "Toward a Theory of Testing: Data Selection
+  Criteria," in R. T. Yeh (ed.), *Current Trends in Programming Methodology, Volume
+  II: Program Validation*, Prentice-Hall, 1977, pp. 44–79, the version Meyer analyses.
 - **Meyer, Bertrand.** "On Formalism in Specifications." *IEEE Software* 2(1):6–26,
   1985.
 - **Meyer, Bertrand.** *Handbook of Requirements and Business Analysis.* Springer,
