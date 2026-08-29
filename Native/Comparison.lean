@@ -1,14 +1,15 @@
 import Native.Properties
-import Meyer.Comparison
+import Meyer.Book.Facts
 
 /-!
-# The Lean-native specification against Meyer's two
+# The Lean-native specification against the book's
 
-`Native.Goal` is the same relation as the book's `S1`, `goal_iff_book`, and not
-the same relation as the paper's `goal`, `goal_ne_paper`.  Through the first,
-everything the chapter proves about `S1` holds of `Goal` as well; `T1` is
-transferred explicitly as `length_le_of_goal`, the inequality `Native.length_of_goal`
-sharpens.
+`Native.Goal` is the same relation as the book's `S1`, `goal_iff_book`.  So
+everything the chapter proves about `S1` holds of `Goal` as well -- `T1` is
+transferred explicitly as `length_le_of_goal`, the inequality
+`Native.length_of_goal` sharpens -- and, since `Meyer.Comparison` proves the
+book's relation different from the paper's, `Goal` differs from the 1985
+relation too.  That corollary is not restated here.
 
 The equivalence runs through one observation: a shortest recast of `i` is the
 printed form of a cut of the words of `i`, and every such printed form is a
@@ -159,17 +160,8 @@ theorem goal_iff_book (M : ℕ) (i o : Text) : Goal M i o ↔ Book.Goal M i o :=
         have h₂ := newLines_render (List.cons_ne_nil l' ls') (hnl _ hl'.flatten)
         omega
 
-/-- **The paper's specification is a different one.**  On the separating input of
-`Meyer.Comparison.specifications_differ`, `␣AB` at a line limit of two, each of
-the two relations accepts an output the other rejects. -/
-theorem goal_ne_paper :
-    ∃ (M : ℕ) (i o₁ o₂ : Text),
-      Paper.Goal M i o₁ ∧ ¬ Goal M i o₁ ∧ Goal M i o₂ ∧ ¬ Paper.Goal M i o₂ := by
-  obtain ⟨M, i, o₁, o₂, h₁, h₁', h₂, h₂'⟩ := Comparison.specifications_differ
-  exact ⟨M, i, o₁, o₂, h₁, fun h => h₁' ((goal_iff_book M i o₁).1 h),
-    (goal_iff_book M i o₂).2 h₂, h₂'⟩
-
-/-- The book's `T1` for `Goal`, the inequality `Native.length_of_goal` sharpens: an output is no
+/-- The book's `T1` for `Goal`, the inequality `Native.length_of_goal` sharpens: an output
+is no
 longer than its input.  Through `goal_iff_book`, an output is a recast of the
 input, and `Meyer.Book.length_le_of_recast` is `T1`. -/
 theorem length_le_of_goal {M : ℕ} {i o : Text} (h : Goal M i o) : o.length ≤ i.length :=

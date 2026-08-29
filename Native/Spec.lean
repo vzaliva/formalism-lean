@@ -47,8 +47,8 @@ pieces.  Everything else is new.
 Where the two Meyer specifications differ, over separators at the two ends of
 the text, this one sides with the book: a leading or trailing break is not a
 word and leaves no trace in the output.  `Native.Comparison` proves the
-relation equal to the book's and, through `Meyer.Comparison`, different from
-the paper's.
+relation equal to the book's; that it then differs from the paper's is
+`Meyer.Comparison`.
 
 The definitions are `noncomputable` only because this toolchain's
 `List.splitOnP` and `List.intercalate` are; the kernel reduces both, and

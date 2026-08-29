@@ -57,7 +57,7 @@ report of what we looked for, not a systematic review.
 | `Native.lean` | umbrella for the third specification |
 | `Native/Spec.lean` | the Lean-native specification: `words`, `render`, `Layout`, `Goal`; and the properties `N1` to `N4` expected of its outputs. Definitions only |
 | `Native/Properties.lean` | decidability, feasibility, nondeterminism, `N1` to `N4` proved, and proved to characterise `Goal` |
-| `Native/Comparison.lean` | `Goal M i o ↔ Meyer.Book.Goal M i o`, and `Goal` is not the 1985 relation |
+| `Native/Comparison.lean` | `Goal M i o ↔ Meyer.Book.Goal M i o` |
 
 ## The 1985 paper
 
@@ -315,9 +315,10 @@ The main result of `Native/Comparison.lean` is that the new specification is the
 theorem goal_iff_book (M : ℕ) (i o : Text) : Goal M i o ↔ Meyer.Book.Goal M i o
 ```
 
-so everything the chapter proves about `S1` holds of `Goal`, and, through
-`Meyer.Comparison.specifications_differ`, `Goal` differs from the 1985 relation
-(`Native.goal_ne_paper`). The proof runs through one observation: a shortest recast of
+so everything the chapter proves about `S1` holds of `Goal`, and, since
+`Meyer.Comparison.specifications_differ` separates the book's relation from the paper's,
+`Goal` differs from the 1985 relation as well; that corollary is not restated. The proof
+runs through one observation: a shortest recast of
 `i` has no two adjacent separators and none at either end, since `[R]`, `[L]` and `[T]`
 would each shorten it, and such a text is the printed form of a cut of its words; every
 printed cut of the words of `i` is in turn a shortest recast, reached by exchanging
@@ -341,7 +342,7 @@ lake exe cache get   # mathlib binaries
 lake build
 ```
 
-A clean build produces no warnings and no `sorry`s. To check what the thirty-four
+A clean build produces no warnings and no `sorry`s. To check what the thirty-three
 theorems depend on:
 
 ```sh
