@@ -209,7 +209,7 @@ private lemma words_cons_sep {c : Char} (hc : IsSeparator c) (t : Text) :
   rw [words_eq_runsOf, words_eq_runsOf, runsOf_cons_pos (by simpa using hc)]
 
 /-- The words of a text made only of separators: there are none. -/
-lemma words_of_forall_sep {b : Text} (h : ∀ c ∈ b, IsSeparator c) : words b = [] := by
+private lemma words_of_forall_sep {b : Text} (h : ∀ c ∈ b, IsSeparator c) : words b = [] := by
   induction b with
   | nil => simp
   | cons c t ih =>
@@ -217,14 +217,14 @@ lemma words_of_forall_sep {b : Text} (h : ∀ c ∈ b, IsSeparator c) : words b 
     exact ih fun a ha => h a (List.mem_cons_of_mem _ ha)
 
 /-- A text with no separator in it is one word. -/
-lemma words_of_forall_letter {w : Text} (hne : w ≠ []) (h : ∀ c ∈ w, IsLetter c) :
+private lemma words_of_forall_letter {w : Text} (hne : w ≠ []) (h : ∀ c ∈ w, IsLetter c) :
     words w = [w] := by
   rw [words_eq_runsOf, runsOf, List.splitOnP_eq_singleton (fun c hc => by simpa using h c hc)]
   simp [hne]
 
 /-- **Words split at a separator.**  Everything about `words` follows from this
 one equation. -/
-lemma words_append_sep {c : Char} (hc : IsSeparator c) (x y : Text) :
+private lemma words_append_sep {c : Char} (hc : IsSeparator c) (x y : Text) :
     words (x ++ c :: y) = words x ++ words y := by
   rw [words_eq_runsOf, words_eq_runsOf, words_eq_runsOf, runsOf,
     List.splitOnP_append_cons x y (by simpa using hc), List.filter_append]

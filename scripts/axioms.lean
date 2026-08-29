@@ -44,3 +44,10 @@ it.  Anything else means an axiom has crept in.
 #print axioms Native.goal_of_forall_isBreak
 #print axioms Native.goal_iff_book
 #print axioms Native.goal_ne_paper
+#print axioms Native.length_le_of_goal
+#print axioms Native.linesFit_of_goal
+#print axioms Native.singleBlanks_of_goal
+#print axioms Native.sameWords_of_goal
+#print axioms Native.length_of_goal
+#print axioms Native.fewestLines_of_goal
+#print axioms Native.goal_iff_properties

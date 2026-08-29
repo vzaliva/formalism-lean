@@ -29,6 +29,13 @@ Nothing here is an implementation.  `Layout` is a property, `Goal` is a relation
 and the relation is not a function: `Native.Properties` shows an input with two
 outputs, as both of Meyer's texts do for theirs.
 
+The module has two parts.  The first is the specification.  The second states,
+as definitions, the properties `N1` to `N4` an output of the specification is
+expected to have, in the way the book states `T1` to `T8` of `S1`; they are
+read off the output with `List.splitOn` and `words`, and say nothing about how
+the output was arrived at.  `Native.Properties` proves that `Goal` has them,
+and that together they characterise it.
+
 ## What is and is not Meyer's
 
 `Text`, `blank`, `newline` and `IsBreak` are the vocabulary the two Meyer
@@ -39,7 +46,7 @@ pieces.  Everything else is new.
 
 Where the two Meyer specifications differ, over separators at the two ends of
 the text, this one sides with the book: a leading or trailing break is not a
-word and leaves no trace in the output.  `Native.Properties` proves the
+word and leaves no trace in the output.  `Native.Comparison` proves the
 relation equal to the book's and, through `Meyer.Comparison`, different from
 the paper's.
 
@@ -88,6 +95,39 @@ structure Layout (M : ℕ) (ws : List Word) (ls : List Line) : Prop where
 def Goal (M : ℕ) (i o : Text) : Prop :=
   ∃ ls, Layout M (words i) ls ∧
     (∀ ls', Layout M (words i) ls' → ls.length ≤ ls'.length) ∧ o = render ls
+
+/-! ## Properties
+
+What an output should look like, stated on the output alone.  Lines are read
+back with `List.splitOn`, which reads the empty text as one empty line; hence the
+proviso `o ≠ []` where a property is about the lines.  `N1` and `N2` are the
+book's `T6` and more; `N3` is its `T3`, about a solution rather than a recast.
+These three are properties of the printed shape of the output and say nothing
+about the minimisation.  `N4` does: no text that is well formed in the sense of
+`N1` to `N3` has fewer lines.  The list is complete -- `Native.goal_iff_properties`
+proves that the four together characterise `Goal` -- which is what the book's
+`T1` to `T8` are not.  The book's `T1`, on the length of the output, has no
+entry here because it is a consequence of `N1` to `N3`; `Native.length_of_goal`
+states it in its sharpest form. -/
+
+/-- `N1`: every line of the output is non-empty and no wider than `M`. -/
+def LinesFit (M : ℕ) (o : Text) : Prop :=
+  o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M
+
+/-- `N2`: on every line, one blank between consecutive words and none at either
+end -- splitting a line at its blanks leaves no empty piece. -/
+def SingleBlanks (o : Text) : Prop :=
+  o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank
+
+/-- `N3`: the output has exactly the words of the input, in order. -/
+def SameWords (i o : Text) : Prop :=
+  words o = words i
+
+/-- `N4`: no text that has the words of the input, one blank between words and
+lines that fit has fewer lines than the output. -/
+def FewestLines (M : ℕ) (i o : Text) : Prop :=
+  ∀ o', LinesFit M o' → SingleBlanks o' → SameWords i o' →
+    o.count newline ≤ o'.count newline
 
 end
 
