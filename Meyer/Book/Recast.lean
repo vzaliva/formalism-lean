@@ -153,10 +153,11 @@ therefore a recast, which is the construction Meyer calls `owpl`, "one word per
 line". -/
 
 /-- The `[R]` case of `recast1` on its own. -/
-private def Recast1R (i o : Text) : Prop :=
+def Recast1R (i o : Text) : Prop :=
   ∃ b ∈ Break, ∃ s, IsSeparator s ∧ ∃ x y : Text, i = x ++ b ++ y ∧ o = x ++ [s] ++ y
 
-private lemma recast1_of_recast1R {i o : Text} (h : Recast1R i o) : Recast1 i o := by
+/-- An `[R]` step is a `recast1` step. -/
+lemma recast1_of_recast1R {i o : Text} (h : Recast1R i o) : Recast1 i o := by
   obtain ⟨b, hb, s, hs, x, y, hi, ho⟩ := h
   exact ⟨b, hb, Or.inr (Or.inr ⟨s, hs, x, y, hi, ho⟩)⟩
 
@@ -165,7 +166,9 @@ private lemma recast1R_cons {c : Char} {i o : Text} (h : Recast1R i o) :
   obtain ⟨b, hb, s, hs, x, y, rfl, rfl⟩ := h
   exact ⟨b, hb, s, hs, c :: x, y, by simp, by simp⟩
 
-private lemma recastR_cons {c : Char} {i o : Text}
+/-- A chain of `[R]` steps survives prefixing a character.  `Native.Properties`
+uses this to exchange separators one at a time. -/
+lemma recastR_cons {c : Char} {i o : Text}
     (h : Relation.ReflTransGen Recast1R i o) :
     Relation.ReflTransGen Recast1R (c :: i) (c :: o) :=
   Relation.ReflTransGen.lift (c :: ·) (fun _ _ h => recast1R_cons h) h

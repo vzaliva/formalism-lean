@@ -3,7 +3,9 @@
 Bertrand Meyer wrote a formal specification of word wrap twice, thirty-seven years
 apart. This repository transcribes both into Lean 4 and proves the results each text
 states about its own specification: Meyer's two claims from 1985, and `T1` to `T8` from
-the 2022 chapter.
+the 2022 chapter. It then adds a third specification of the same problem, written to
+use what Lean already has rather than to transcribe a text, and proves it to be the
+2022 relation exactly and the 1985 relation not at all.
 
 > Bertrand Meyer, *On Formalism in Specifications*, IEEE Software 2(1):6–26, 1985.
 > [DOI 10.1109/MS.1985.229776](https://doi.org/10.1109/MS.1985.229776) ·
@@ -52,6 +54,9 @@ report of what we looked for, not a systematic review.
 | `Meyer/Book/Facts.lean` | the chapter's eight claims `T1` to `T8`, proved |
 | `Meyer/Book/Bug.lean` | a defect in the book, proved |
 | `Meyer/Comparison.lean` | the two specifications are not the same relation |
+| `Native.lean` | umbrella for the third specification |
+| `Native/Spec.lean` | the Lean-native specification: `words`, `render`, `Layout`, `Goal`. Definitions only |
+| `Native/Properties.lean` | decidability, feasibility, nondeterminism, and `Goal M i o ↔ Meyer.Book.Goal M i o` |
 
 ## The 1985 paper
 
@@ -218,6 +223,73 @@ yields a single space, provided `MAXPOS ≥ 1`. At `MAXPOS = 0` a space is itsel
 one character long, so the paper's output is a new line instead. Neither half of the
 1985 answer is mechanised.
 
+## A third specification, Lean-native
+
+Both of Meyer's specifications keep the text as a sequence of characters and recover
+its structure from that sequence: the paper by taking a longest subsequence with no two
+adjacent break characters, the book by taking a shortest element of the closure of a
+rewriting relation, and both by measuring a line as the longest run of characters
+containing no new line. `Native/Spec.lean` writes the same problem the other way round.
+It reads the words off once and never looks at a character again:
+
+```lean
+def words (t : Text) : List Word := (t.splitOnP (IsBreak ·)).filter (· ≠ [])
+def renderLine (l : Line) : Text := List.intercalate [blank] l
+def render (ls : List Line) : Text := List.intercalate [newline] (ls.map renderLine)
+
+structure Layout (M : ℕ) (ws : List Word) (ls : List Line) : Prop where
+  flatten  : ls.flatten = ws
+  nonempty : [] ∉ ls
+  fits     : ∀ l ∈ ls, (renderLine l).length ≤ M
+
+def Goal (M : ℕ) (i o : Text) : Prop :=
+  ∃ ls, Layout M (words i) ls ∧
+    (∀ ls', Layout M (words i) ls' → ls.length ≤ ls'.length) ∧ o = render ls
+```
+
+A `Word` is a `Text`, a `Line` is a `List Word`, and `words` is the book's `WORDS`
+character for character. That is the whole specification. What the change of
+representation buys:
+
+- **No supremum over runs.** The line limit is a bounded quantifier over a list, and
+  `maxRun`, with its nonemptiness and boundedness obligations, is not needed.
+- **No finiteness side condition.** A layout of `n` words is one of the finitely many
+  cuts of a list of length `n`, so the minimum exists without the care Meyer takes over
+  `MAX_SET` in the paper's box "The reasoning behind formal specifications".
+- **Decidability.** `Native/Properties.lean` proves `Goal` decidable, so the worked
+  examples, Meyer's `␣␣ABC␣␣D␣␣EFG` at `M = 5` and `WHO WHAT WHEN` at `MAXPOS = 10`,
+  are settled by `decide` rather than by hand. The specification is still a
+  proposition; that it can be evaluated is a theorem about it.
+- **Nothing to retain.** The words are the primitive, so the step the paper asserts in
+  passing and `Meyer/Paper/Retention.lean` spends its effort on has no counterpart.
+
+The properties Meyer proves sort into two kinds. `T2`, `T6`, `T7` and `T8` have short
+counterparts (`Native.feasibility` is `T8` and the paper's domain theorem, on the words
+directly). `T1`, `T3` and `T4` have no statement at all: they are properties of the
+character encoding, not of the problem.
+
+The main result of `Native/Properties.lean` is that the new specification is the book's:
+
+```lean
+theorem goal_iff_book (M : ℕ) (i o : Text) : Goal M i o ↔ Meyer.Book.Goal M i o
+```
+
+so everything the chapter proves about `S1` holds of `Goal`, and, through
+`Meyer.Comparison.specifications_differ`, `Goal` differs from the 1985 relation
+(`Native.goal_ne_paper`). The proof runs through one observation: a shortest recast of
+`i` has no two adjacent separators and none at either end, since `[R]`, `[L]` and `[T]`
+would each shorten it, and such a text is the printed form of a cut of its words; every
+printed cut of the words of `i` is in turn a shortest recast, reached by exchanging
+separators and attaining the length bound of exercise 9-E.6. On a printed cut,
+`maxline ≤ M` says every line fits and `new_lines` counts the lines less one, so the
+book's two minimisations are the layout's one.
+
+Where the two Meyer specifications differ, over separators at the ends of the text, the
+new one sides with the book: a leading or trailing break leaves no trace. One cost is
+worth naming: `List.splitOnP` and `List.intercalate` are `noncomputable` reference
+models in this toolchain, so the definitions carry that marker. The kernel reduces
+both, which is what `decide` needs, but `#eval` does not.
+
 ## Building
 
 Requires [elan](https://github.com/leanprover/elan). The toolchain and mathlib version
@@ -228,7 +300,7 @@ lake exe cache get   # mathlib binaries
 lake build
 ```
 
-A clean build produces no warnings and no `sorry`s. To check what the twenty-two
+A clean build produces no warnings and no `sorry`s. To check what the twenty-seven
 theorems depend on:
 
 ```sh

@@ -1,11 +1,13 @@
 import Meyer
+import Native
 
 /-!
 # Axiom audit
 
 Every `theorem` in the development, which is to say every claim either of
-Meyer's sources makes about its own specification and every finding this
-development asserts on its own account.  Run with
+Meyer's sources makes about its own specification, every finding this
+development asserts on its own account, and the claims made about the
+Lean-native specification in `Native`.  Run with
 
 ```sh
 lake env lean scripts/axioms.lean
@@ -37,3 +39,8 @@ it.  Anything else means an axiom has crept in.
 #print axioms Meyer.Book.words_eq_of_recast
 #print axioms Meyer.Book.length_breaks_ge
 #print axioms Meyer.Comparison.specifications_differ
+#print axioms Native.feasibility
+#print axioms Native.goal_not_functional
+#print axioms Native.goal_of_forall_isBreak
+#print axioms Native.goal_iff_book
+#print axioms Native.goal_ne_paper

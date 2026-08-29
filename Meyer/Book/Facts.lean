@@ -80,7 +80,7 @@ lemma mem_minRecasts_iff {i o : Text} :
     exact ⟨⟨ho, trivial⟩, fun y hy => hmin y hy.1⟩
 
 /-- There is always a shortest recast. -/
-private lemma minRecasts_nonempty (i : Text) : (MinRecasts i).Nonempty :=
+lemma minRecasts_nonempty (i : Text) : (MinRecasts i).Nonempty :=
   minSet_nonempty _ ⟨i, recast_refl i, trivial⟩
 
 /-- Membership in `S1` unfolded. -/
@@ -146,7 +146,7 @@ retains one break character at each end.  See the header of
 `Meyer.Book.Spec`. -/
 
 /-- A shortest recast does not begin with a separator: `[L]` would shorten it. -/
-private lemma head_not_isSeparator {i o : Text} (ho : o ∈ MinRecasts i) {c : Char} {t : Text}
+lemma head_not_isSeparator {i o : Text} (ho : o ∈ MinRecasts i) {c : Char} {t : Text}
     (h : o = c :: t) : ¬ IsSeparator c := by
   intro hc
   obtain ⟨hor, homin⟩ := mem_minRecasts_iff.1 ho
@@ -157,7 +157,7 @@ private lemma head_not_isSeparator {i o : Text} (ho : o ∈ MinRecasts i) {c : C
   omega
 
 /-- Nor does it end with one: `[T]` would shorten it. -/
-private lemma getLast_not_isSeparator {i o : Text} (ho : o ∈ MinRecasts i) {t : Text} {c : Char}
+lemma getLast_not_isSeparator {i o : Text} (ho : o ∈ MinRecasts i) {t : Text} {c : Char}
     (h : o = t ++ [c]) : ¬ IsSeparator c := by
   intro hc
   obtain ⟨hor, homin⟩ := mem_minRecasts_iff.1 ho

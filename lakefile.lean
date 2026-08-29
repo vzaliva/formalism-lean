@@ -14,3 +14,10 @@ package «formalism-lean» where
 @[default_target]
 lean_lib Meyer where
   globs := #[.andSubmodules `Meyer]
+
+-- A third specification of the same problem, written to use what Lean already
+-- has: words and lines as lists rather than as runs of characters.  Also
+-- specification only.
+@[default_target]
+lean_lib Native where
+  globs := #[.andSubmodules `Native]
