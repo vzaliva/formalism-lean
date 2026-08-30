@@ -43,24 +43,26 @@ unconstrained invariant available.
 
 namespace Meyer.Paper
 
+variable {α : Type*} [Alphabet α]
+
 /-! ## Words and heads -/
 
 /-- A tail of a word is a word. -/
-private lemma BreakFree.of_cons {c : Char} {t : Text} (h : BreakFree (c :: t)) : BreakFree t :=
+private lemma BreakFree.of_cons {c : α} {t : Text α} (h : BreakFree (c :: t)) : BreakFree t :=
   fun x hx => h x (List.mem_cons_of_mem _ hx)
 
 /-- A word does not begin with a break character. -/
-private lemma BreakFree.head {c : Char} {t : Text} (h : BreakFree (c :: t)) : ¬ IsBreak c :=
+private lemma BreakFree.head {c : α} {t : Text α} (h : BreakFree (c :: t)) : ¬ IsBreak c :=
   h c (List.mem_cons_self ..)
 
 /-- The text does not begin with a break character; vacuously true of `[]`. -/
-private def NoBreakHead : Text → Prop
+private def NoBreakHead : Text α → Prop
   | [] => True
   | c :: _ => ¬ IsBreak c
 
-@[simp] private lemma noBreakHead_nil : NoBreakHead [] := trivial
+@[simp] private lemma noBreakHead_nil : NoBreakHead ([] : Text α) := trivial
 
-@[simp] private lemma noBreakHead_cons {c : Char} {l : Text} :
+@[simp] private lemma noBreakHead_cons {c : α} {l : Text α} :
     NoBreakHead (c :: l) ↔ ¬ IsBreak c := Iff.rfl
 
 /-! ## `NoDoubleBreak` at a cons
@@ -70,14 +72,14 @@ lemma: it is the chain condition rewritten as a statement about the head. -/
 
 /-- Consing onto a text with single breaks keeps them single exactly when the new
 character, if it is a break, is not followed by another. -/
-private lemma noDoubleBreak_cons_iff {c : Char} {b : Text} :
+private lemma noDoubleBreak_cons_iff {c : α} {b : Text α} :
     NoDoubleBreak (c :: b) ↔ (IsBreak c → NoBreakHead b) ∧ NoDoubleBreak b := by
   cases b with
   | nil => simp [NoDoubleBreak]
   | cons d l => simp [NoDoubleBreak, List.isChain_cons_cons]
 
 /-- A tail of a text with single breaks has single breaks. -/
-private lemma NoDoubleBreak.of_cons {c : Char} {b : Text} (h : NoDoubleBreak (c :: b)) :
+private lemma NoDoubleBreak.of_cons {c : α} {b : Text α} (h : NoDoubleBreak (c :: b)) :
     NoDoubleBreak b := (noDoubleBreak_cons_iff.1 h).2
 
 /-! ## Words do not cross a break
@@ -87,7 +89,7 @@ at the front of `c :: l` with `c` a break must be empty, and a word anywhere
 inside `c :: l` must in fact be inside `l`. -/
 
 /-- No nonempty word is a prefix of a text beginning with a break. -/
-private lemma breakFree_prefix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : BreakFree t) :
+private lemma breakFree_prefix_cons {c : α} {l t : Text α} (hc : IsBreak c) (ht : BreakFree t) :
     t.IsPrefix (c :: l) ↔ t = [] := by
   cases t with
   | nil => simp
@@ -96,7 +98,7 @@ private lemma breakFree_prefix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht
     exact ht.head ((List.cons_prefix_cons.1 hp).1 ▸ hc)
 
 /-- A word inside a text beginning with a break lies wholly beyond that break. -/
-private lemma breakFree_infix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht : BreakFree t) :
+private lemma breakFree_infix_cons {c : α} {l t : Text α} (hc : IsBreak c) (ht : BreakFree t) :
     t.IsInfix (c :: l) ↔ t.IsInfix l := by
   rw [List.infix_cons_iff, breakFree_prefix_cons hc ht]
   exact ⟨fun h => h.elim (fun h => h ▸ List.nil_infix) id, Or.inr⟩
@@ -105,28 +107,28 @@ private lemma breakFree_infix_cons {c : Char} {l t : Text} (hc : IsBreak c) (ht 
 
 /-- The unconstrained invariant: `b` is a longest element of `SINGLE_BREAKS (a)`.
 Uncurried, this is exactly `b ∈ COMPACTED (a)`. -/
-private def MaxFree (a b : Text) : Prop :=
+private def MaxFree (a b : Text α) : Prop :=
   b.Sublist a ∧ NoDoubleBreak b ∧
-    ∀ y : Text, y.Sublist a → NoDoubleBreak y → y.length ≤ b.length
+    ∀ y : Text α, y.Sublist a → NoDoubleBreak y → y.length ≤ b.length
 
 /-- The strengthened invariant, in force when the character emitted just before
 this point was a break: `b` itself must not begin with a break, and it need only
 beat competitors that do not begin with one. -/
-private def MaxAfterBreak (a b : Text) : Prop :=
+private def MaxAfterBreak (a b : Text α) : Prop :=
   b.Sublist a ∧ NoDoubleBreak b ∧ NoBreakHead b ∧
-    ∀ y : Text, y.Sublist a → NoDoubleBreak y → NoBreakHead y → y.length ≤ b.length
+    ∀ y : Text α, y.Sublist a → NoDoubleBreak y → NoBreakHead y → y.length ≤ b.length
 
 /-- `a` and `b` have the same words: the same break-free stretches occur in
 each. -/
-def SameWords (a b : Text) : Prop :=
-  ∀ t : Text, BreakFree t → (t.IsInfix a ↔ t.IsInfix b)
+def SameWords (a b : Text α) : Prop :=
+  ∀ t : Text α, BreakFree t → (t.IsInfix a ↔ t.IsInfix b)
 
 /-- `a` and `b` begin with the same words. -/
-private def SameInitialWords (a b : Text) : Prop :=
-  ∀ t : Text, BreakFree t → (t.IsPrefix a ↔ t.IsPrefix b)
+private def SameInitialWords (a b : Text α) : Prop :=
+  ∀ t : Text α, BreakFree t → (t.IsPrefix a ↔ t.IsPrefix b)
 
 /-- Agreement on initial words is stable under consing the same character. -/
-private lemma cons_sameInitialWords {a b : Text} {c : Char} (hp : SameInitialWords a b) :
+private lemma cons_sameInitialWords {a b : Text α} {c : α} (hp : SameInitialWords a b) :
     SameInitialWords (c :: a) (c :: b) := by
   intro t ht
   cases t with
@@ -138,7 +140,7 @@ private lemma cons_sameInitialWords {a b : Text} {c : Char} (hp : SameInitialWor
 /-- Agreement on words is stable under consing the same character, given
 agreement on initial words: a word of `c :: a` either starts at `c` or sits
 inside `a`. -/
-private lemma cons_sameWords {a b : Text} {c : Char} (hi : SameWords a b)
+private lemma cons_sameWords {a b : Text α} {c : α} (hi : SameWords a b)
     (hp : SameInitialWords a b) : SameWords (c :: a) (c :: b) := by
   intro t ht
   rw [List.infix_cons_iff, List.infix_cons_iff]
@@ -150,13 +152,15 @@ Maximality is used in two ways: a competitor `c :: y` bounds `y` by the tail of
 `b`, and the competitor `c :: b` itself, when legal, is longer than `b` and so
 cannot exist.  The two arithmetic facts are isolated here. -/
 
+omit [Alphabet α] in
 /-- Strip a common leading character from a length comparison. -/
-private lemma length_le_of_cons_le_cons {c : Char} {y b : Text}
+private lemma length_le_of_cons_le_cons {c : α} {y b : Text α}
     (h : (c :: y).length ≤ (c :: b).length) : y.length ≤ b.length := by
   simpa using h
 
+omit [Alphabet α] in
 /-- Nothing is at least as long as itself with a character added. -/
-private lemma not_length_cons_le {c : Char} {b : Text} : ¬ (c :: b).length ≤ b.length := by
+private lemma not_length_cons_le {c : α} {b : Text α} : ¬ (c :: b).length ≤ b.length := by
   simp
 
 /-- **Meyer's exchange argument.**  A longest element of `SINGLE_BREAKS (a)` has
@@ -165,7 +169,7 @@ initial words.
 
 The two invariants must be proved together: each retention step switches from one
 to the other according to whether the retained character is a break. -/
-private lemma sameWords_of_sublist {a b : Text} (h : b.Sublist a) :
+private lemma sameWords_of_sublist {a b : Text α} (h : b.Sublist a) :
     (MaxFree a b → SameWords a b ∧ SameInitialWords a b) ∧
     (MaxAfterBreak a b → SameWords a b) := by
   induction h with
@@ -229,7 +233,7 @@ private lemma sameWords_of_sublist {a b : Text} (h : b.Sublist a) :
 
 `MaxFree` is `COMPACTED` uncurried, so this is the special case of
 `sameWords_of_sublist` that the specification actually uses. -/
-theorem sameWords_of_mem_compacted {a b : Text} (hb : b ∈ Compacted a) : SameWords a b :=
+theorem sameWords_of_mem_compacted {a b : Text α} (hb : b ∈ Compacted a) : SameWords a b :=
   ((sameWords_of_sublist hb.1.1).1
     ⟨hb.1.1, hb.1.2, fun y hy hy2 => hb.2 y ⟨hy, hy2⟩⟩).1
 
@@ -238,8 +242,8 @@ theorem sameWords_of_mem_compacted {a b : Text} (hb : b ∈ Compacted a) : SameW
 /-- **The one step Meyer asserts without proof.**  Compacting a text does not
 change its words, so a compaction of `a` has an oversize word exactly when `a`
 does. -/
-lemma mem_noOversizeWord_compacted_iff (MAXPOS : ℕ) {a b : Text} (hb : b ∈ Compacted a) :
-    b ∈ NoOversizeWord MAXPOS ↔ a ∈ NoOversizeWord MAXPOS := by
+lemma mem_noOversizeWord_compacted_iff (MAXPOS : ℕ) {a b : Text α} (hb : b ∈ Compacted a) :
+    b ∈ NoOversizeWord α MAXPOS ↔ a ∈ NoOversizeWord α MAXPOS := by
   have hw : SameWords a b := sameWords_of_mem_compacted hb
   rw [mem_noOversizeWord_iff, mem_noOversizeWord_iff]
   exact ⟨fun h t ht hbf => h t ((hw t hbf).1 ht) hbf,

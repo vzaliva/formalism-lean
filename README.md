@@ -43,18 +43,22 @@ report of what we looked for, not a systematic review.
 | Module | Contents |
 |---|---|
 | `Meyer.lean` | umbrella; `import Meyer` brings in everything |
-| `Meyer/Common.lean` | what the two treatments share: texts, separators, `Spec` (a specification is a relation between input and output), `MAX_SET`/`MIN_SET`, and `maxRun`, the common generalisation of the paper's `max_line_length` and the book's `maxline`, `maxword` and `M6` |
+| `Meyer/Common.lean` | what the two treatments share: the alphabet classes `Alphabet` (1985) and `Lettered` (2022) — the transcriptions never mention `Char` — texts, separators, `Spec` (a specification is a relation between input and output), `MAX_SET`/`MIN_SET`, and `maxRun`, the common generalisation of the paper's `max_line_length` and the book's `maxline`, `maxword` and `M6` |
 | `Meyer/Paper/Spec.lean` | the 1985 specification: `SINGLE_BREAKS`, `COMPACTED`, `EQUIVALENT`, `TRIMMED`, `FEWEST_LINES`, `goal`. Definitions only |
 | `Meyer/Paper/Lemmas.lean` | basic API, and Meyer's condition for `TRIMMED (b)` to be nonempty |
 | `Meyer/Paper/Retention.lean` | the step Meyer asserts without proof: compacting a text does not change its words |
 | `Meyer/Paper/Facts.lean` | Meyer's two claims, proved |
 | `Meyer/Paper/Bug.lean` | a defect in the paper, proved |
+| `Meyer/Paper/Examples.lean` | `WHO WHAT WHEN` at `Char`; the letterless alphabet `Bool` |
 | `Meyer/Book/Spec.lean` | the 2022 specification: `recast1`, `recast`, `maxword`, `maxline`, the `mu` operator, `S1`. Definitions only |
 | `Meyer/Book/Recast.lean` | properties of the recasting relation |
 | `Meyer/Book/Words.lean` | words and breaks (exercise 9-E.6) |
 | `Meyer/Book/Facts.lean` | the chapter's eight claims `T1` to `T8`, proved |
 | `Meyer/Book/Bug.lean` | a defect in the book, proved |
+| `Meyer/Book/Examples.lean` | `␣␣ABC␣␣D␣␣EFG` at `Char`, with its two solutions and the defect's third |
 | `Meyer/Comparison.lean` | the two specifications are not the same relation |
+| `Meyer/Comparison/Examples.lean` | `␣AB` at `Char`: the empty first line |
+| `Meyer/Char.lean` | `Char` as an alphabet of both kinds |
 | `Native.lean` | umbrella for the third specification |
 | `Native/Spec.lean` | the Lean-native specification twice over: `ByLayout` and `ByText`. Definitions only |
 | `Native/Properties.lean` | decidability, feasibility, nondeterminism, and `ByLayout M = ByText M` |
@@ -66,9 +70,9 @@ The headline results, both in `Meyer/Paper/Facts.lean`:
 
 ```lean
 theorem goal_not_functional :
-    ∃ (n : ℕ) (i o₁ o₂ : Text), Goal n i o₁ ∧ Goal n i o₂ ∧ o₁ ≠ o₂
+    ∃ (n : ℕ) (i o₁ o₂ : Text Char), Goal n i o₁ ∧ Goal n i o₂ ∧ o₁ ≠ o₂
 
-theorem domGoal_eq_noOversizeWord : DomGoal MAXPOS = NoOversizeWord MAXPOS
+theorem domGoal_eq_noOversizeWord : DomGoal α MAXPOS = NoOversizeWord α MAXPOS
 ```
 
 The witness for the first is Meyer's own, `WHO WHAT WHEN` at `MAXPOS = 10`, which
@@ -139,7 +143,9 @@ All eight are true, and all are proved here:
 Also proved: the "minimization lemma" of §9.5.6 (exercise 9-E.5), the equivalence of
 `M5` and `M6`, and, of exercise 9-E.6, definitions of `WORDS` and `breaks` together with
 the properties `T3` and `T4` need. Its alternating-decomposition theorem is not stated.
-The witness for `T5` is Meyer's own, `␣␣ABC␣␣D␣␣EFG` at `M = 5`.
+`T5` is proved for any alphabet with a letter `c` and two distinct separators, on the
+input `c cc c` at `M = 4`; Meyer's own witness, `␣␣ABC␣␣D␣␣EFG` at `M = 5`, is the `Char`
+example beside it.
 
 ### What formalising it turned up
 
@@ -215,9 +221,12 @@ Meyer states the consequence himself as `T6`.
 The difference is not only cosmetic. For the input `␣AB` with a line limit of two
 characters, the paper cannot leave the blank where it is, because the line `␣AB` is
 three characters long. It must turn the blank into a new line, so its output has an
-empty first line. The book deletes the blank. `Meyer/Comparison.lean` proves that each
-specification's output for this input is rejected by the other, and hence that the two
-are different elements of `Spec`: `Paper.Goal 2 ≠ Book.Goal 2` (`paper_ne_book`).
+empty first line. The book deletes the blank. `Meyer/Comparison/Examples.lean` checks
+this at `Char` by `decide`. `Meyer/Comparison.lean` proves the divergence for every
+alphabet on the smallest possible input: at line limit one the two disagree on the
+one-character text `[space]`, which the paper keeps and the book deletes
+(`specifications_differ`, each output rejected by the other; `paper_ne_book`, the two as
+different elements of `Spec`); see [Alphabets](#alphabets).
 
 The same divergence bears on a question Meyer raises as `T7` and leaves open for the
 natural-language originals. For an input of separators only the book yields the empty
@@ -243,9 +252,10 @@ def words (t : Text) : List Word := (t.splitOnP (IsBreak ·)).filter (· ≠ [])
 
 A `Word` is a `Text`, a `Line` is a `List Word`, and `words` is the book's `WORDS`
 character for character. It is the only place either specification looks at a
-character. Both specifications have the type `Spec := Text → Text → Prop` of
-`Meyer/Common.lean`, a relation between input and output — which is what the 1985 paper
-says a specification is.
+character. Both specifications have the type `Spec Char`, where `Spec α := Text α → Text α → Prop`
+in `Meyer/Common.lean` is a relation between input and output — which is what the 1985
+paper says a specification is. The native specification is concrete over `Char`, an
+alphabet of both of Meyer's kinds; his are abstract, see [Alphabets](#alphabets).
 
 ### By layouts
 
@@ -260,7 +270,7 @@ structure Layout (ws : List Word) (ls : List Line) : Prop where
   nonempty : [] ∉ ls
   fits     : ∀ l ∈ ls, (renderLine l).length ≤ M
 
-def ByLayout : Spec := fun i o =>
+def ByLayout : Spec Char := fun i o =>
   ∃ ls, Layout M (words i) ls ∧
     (∀ ls', Layout M (words i) ls' → ls.length ≤ ls'.length) ∧ o = render ls
 ```
@@ -292,11 +302,11 @@ structure Acceptable.Fields (i o : Text) : Prop where
   linesFit     : o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M   -- N1
   singleBlanks : o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank     -- N2
   sameWords    : words o = words i                                           -- N3
-abbrev Acceptable : Spec := Acceptable.Fields M
+abbrev Acceptable : Spec Char := Acceptable.Fields M
 
 structure ByText.Fields (i o : Text) : Prop extends Acceptable.Fields M i o where
   fewestLines  : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline  -- N4
-abbrev ByText : Spec := ByText.Fields M
+abbrev ByText : Spec Char := ByText.Fields M
 ```
 
 An output is an acceptable text with the fewest lines, where acceptable means: every
@@ -377,6 +387,63 @@ worth naming: `List.splitOnP` and `List.intercalate` are `noncomputable` referen
 models in this toolchain, so the definitions carry that marker. The kernel reduces
 both, which is what `decide` needs, but `#eval` does not.
 
+## Alphabets
+
+Neither text fixes the character set, and the two texts assume different things of it.
+The paper: "the only property of `CHAR` that matters here is that `CHAR` contains two
+elements of particular interest, `blank` and `new_line`". The book:
+`CHARACTER ≜ LETTER ∪ SEPARATOR` with `SEPARATOR ≜ {space, new_line}`, `LETTER ≠ ∅` and
+`LETTER ∩ SEPARATOR = ∅`. Each is a typeclass in `Meyer/Common.lean`:
+
+```lean
+class Alphabet (α : Type*) where          -- 1985
+  blank newline : α
+
+class Lettered (α : Type*) extends Alphabet α where   -- 2022
+  exists_letter : ∃ c : α, ¬ IsBreak c
+```
+
+`Meyer.Paper` and `Meyer.Book` are both stated over `[Alphabet α]` — the book puts the
+whole of §9.5 under `LETTER ≠ ∅`, but its definitions do not need a letter, and stating
+them without one is a strengthening, not a departure: every statement over `Alphabet`
+specialises to `Lettered`. `Native` is concrete over `Char`, which is an instance of
+both. Neither class says that `blank` and `new_line` differ, because neither text does.
+Making the assumptions explicit turns four remarks into checked facts:
+
+- **`LETTER ≠ ∅` serves exactly one of the book's eight theorems.** `Lettered` occurs in
+  the types of exactly three theorems in the repository: `T5`, nondeterminism
+  (`Meyer.Book.goal_not_functional`), proved from an abstract letter `c` with the input
+  `c cc c` at `M = 4`; the book's `M3` defect (`Meyer.Book.Bug.goal_unfilled`), which is
+  the same input with a third output `c / cc / c`; and the 1985 subsequence defect
+  (`Meyer.Paper.Bug.domGoal_ne_noOversizeWord`), whose witness is a one-letter text.
+  `T1`–`T4` and `T6`–`T8` are stated and proved over `Alphabet`. The transcriptions never
+  mention `Char`; Meyer's own witnesses — `WHO WHAT WHEN`, `␣␣ABC␣␣D␣␣EFG` with its third
+  output, `␣AB` — are settled by `decide` in the `Examples` modules, and the paper's
+  nondeterminism claim, which the paper makes without any assumption on `CHAR`, is
+  stated there at `Char` rather than attributed a letter the paper never asks for.
+- **The 1985 specification is the more general, and needs no letter.** Its domain theorem
+  holds on every `Alphabet`; on `Bool` with `true` for `blank` and `false` for `new_line`,
+  an alphabet with no letters at all, it says that every text has an output
+  (`Meyer/Paper/Facts.lean`, section *Letterless*). `Bool` is provably not `Lettered`.
+- **Where `blank ≠ new_line` is needed, and where it only seemed to be.** Neither
+  specification's definitions need it. Four results do, and take it as a hypothesis:
+  the book's remark that `M5` and `M6` define the same function
+  (`maxLine_eq_maxRun_letter_or_blank`; if the two separators coincide, `new_line` is a
+  space and `M6` counts it); the refutation of the termination argument
+  (`recast1_cycle`; the cycle *is* the exchange of the two); `T5` itself, since two
+  outputs with the same words can differ only in their separators; and the `M3` defect
+  witness, which is `T5`'s input with a third output and inherits both of `T5`'s
+  assumptions. The feasibility
+  theorem `T8` appeared to need it, because the original proof went through "no spaces
+  are left after `owpl`"; the weaker "what is left that is not a new line was never a
+  space" suffices and holds regardless. The native round trip through `render` uses it
+  at `Char`, where it is a `decide`.
+- **The two Meyer specifications differ without a letter.** `Meyer.Comparison.paper_ne_book`
+  separates them on the one-character text `[space]` at line limit one, on every
+  `Alphabet`: the paper keeps the space and the book deletes it. This mechanises the
+  `T7` divergence that was previously a remark, while the `␣AB` example with its empty
+  first line is kept at `Char`.
+
 ## Building
 
 Requires [elan](https://github.com/leanprover/elan). The toolchain and mathlib version
@@ -400,13 +467,12 @@ Each line should report `[propext, Classical.choice, Quot.sound]` or a subset.
 
 Recorded in full in each module's docstring. In brief:
 
-- `CHAR`/`CHARACTER` is instantiated at Lean's `Char`, so this is a concrete model of
-  each specification rather than the abstract transcription. Nothing below uses any
-  property of `Char` beyond decidable equality and `blank ≠ newline`, but the results
-  are proved for that one alphabet and not for an arbitrary one. The book constrains
-  `LETTER` by `CHARACTER ≜ LETTER ∪ SEPARATOR`, `LETTER ≠ ∅` and
-  `LETTER ∩ SEPARATOR = ∅` (p. 172); once `CHARACTER` is `Char`, the complement of
-  `SEPARATOR` is the only set satisfying all three.
+- Equality of characters is assumed decidable, `[DecidableEq α]`, wherever a definition
+  tests it. That is a Lean-side assumption with no counterpart in the texts, whose
+  mathematics is classical; it costs no generality, since every type has a classical
+  instance, and it is what lets `decide` run on `Char`. The paper's alphabet is
+  transcribed as stated; the book's `LETTER ≠ ∅` is deliberately assumed only where a
+  letter is used, which strengthens the book's theorems — see [Alphabets](#alphabets).
 - "Subsequence" in the paper is `List.Sublist`, for the reason above; in the book it is
   contiguous by definition (§9.2.6) and so is `List.IsInfix`.
 - `MAX_SET`/`MIN_SET` and the `mu` operator are rendered as "no element of the set does

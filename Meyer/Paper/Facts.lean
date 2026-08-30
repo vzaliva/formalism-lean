@@ -17,74 +17,7 @@ takes silently.
 
 namespace Meyer.Paper
 
-/-! ## The specification is nondeterministic
-
-Meyer: "there may be more than one correct output for a given input; in other
-words, a truly general specification of the problem should be nondeterministic."
-
-The witness is his own, from his analysis of the ambiguity in Goodenough and
-Gerhart's prose: with `MAXPOS = 10` and the input `WHO WHAT WHEN` "there are two
-equally correct two-line solutions (`WHAT` may be on either the first or second
-line)".  Their specification, he suspects, was nondeterministic by accident;
-his is so by design, and the formal `goal` does relate the input to both. -/
-
-section Nondeterminism
-
-/-- Meyer's input, `WHO WHAT WHEN`. -/
-private def wIn : Text := "WHO WHAT WHEN".toList
-
-/-- One acceptable output: `WHAT` on the first line. -/
-private def wOut₁ : Text := "WHO WHAT\nWHEN".toList
-
-/-- The other: `WHAT` on the second line. -/
-private def wOut₂ : Text := "WHO\nWHAT WHEN".toList
-
-private lemma wIn_noDoubleBreak : NoDoubleBreak wIn := by decide
-
-private lemma wIn_mem_compacted : wIn ∈ Compacted wIn :=
-  mem_compacted_self wIn_noDoubleBreak
-
-/-- Anything reachable from the input has its length: `COMPACTED` preserves it
-because the input already has single breaks, and `EQUIVALENT` preserves it by
-definition. -/
-private lemma length_of_mem_transf {y : Text} (hy : y ∈ Transf 10 wIn) :
-    y.length = 13 := by
-  obtain ⟨b, hb, hEquiv, -⟩ := hy
-  rw [length_eq_of_mem_equivalent hEquiv, length_eq_of_mem_compacted wIn_noDoubleBreak hb]
-  decide
-
-/-- Every acceptable output has at least one newline: without one it would be a
-single line of thirteen characters, and `MAXPOS` is ten. -/
-private lemma one_le_newlines {y : Text} (hy : y ∈ Transf 10 wIn) :
-    1 ≤ numberOfNewLines y := by
-  by_contra hcon
-  have hzero : numberOfNewLines y = 0 := by omega
-  have hnot : newline ∉ y := List.count_eq_zero.1 hzero
-  have hlen : y.length = 13 := length_of_mem_transf hy
-  have hbound : maxLineLength y ≤ 10 := hy.choose_spec.2.2
-  have := length_le_maxLineLength_of_no_newline hnot
-  omega
-
-/-- A text equivalent to the input that fits within `MAXPOS` and has exactly one
-newline is an acceptable output, since nothing acceptable has fewer. -/
-private lemma goal_of_one_newline {o : Text} (ho : o ∈ Equivalent wIn)
-    (hmax : maxLineLength o ≤ 10) (h1 : numberOfNewLines o = 1) : Goal 10 wIn o :=
-  ⟨⟨wIn, wIn_mem_compacted, ho, hmax⟩, fun y hy => by rw [h1]; exact one_le_newlines hy⟩
-
-private lemma goal_wOut₁ : Goal 10 wIn wOut₁ :=
-  goal_of_one_newline (by decide) (maxLineLength_le_of_tails (by decide)) (by decide)
-
-private lemma goal_wOut₂ : Goal 10 wIn wOut₂ :=
-  goal_of_one_newline (by decide) (maxLineLength_le_of_tails (by decide)) (by decide)
-
-/-- **Meyer's nondeterminism claim.**  "There may be more than one correct output
-for a given input; in other words, a truly general specification of the problem
-should be nondeterministic." -/
-theorem goal_not_functional :
-    ∃ (n : ℕ) (i o₁ o₂ : Text), Goal n i o₁ ∧ Goal n i o₂ ∧ o₁ ≠ o₂ :=
-  ⟨10, wIn, wOut₁, wOut₂, goal_wOut₁, goal_wOut₂, by decide⟩
-
-end Nondeterminism
+variable {α : Type*} [DecidableEq α] [Alphabet α]
 
 /-! ## The domain of the specification
 
@@ -124,12 +57,12 @@ variable (MAXPOS : ℕ)
 and sufficient condition for the existence of at least one sequence `c` such that
 `limited_length (b, c)` holds is that `b` contains no word ... of length greater
 than `MAXPOS`." -/
-theorem trimmed_nonempty_iff (b : Text) :
-    (Trimmed MAXPOS b).Nonempty ↔ b ∈ NoOversizeWord MAXPOS :=
+theorem trimmed_nonempty_iff (b : Text α) :
+    (Trimmed MAXPOS b).Nonempty ↔ b ∈ NoOversizeWord α MAXPOS :=
   ⟨fun ⟨_, hc⟩ => mem_noOversizeWord_of_mem_trimmed hc, trimmed_nonempty⟩
 
 /-- **Meyer's theorem on the domain of `goal`.** -/
-theorem domGoal_eq_noOversizeWord : DomGoal MAXPOS = NoOversizeWord MAXPOS := by
+theorem domGoal_eq_noOversizeWord : DomGoal α MAXPOS = NoOversizeWord α MAXPOS := by
   ext i
   rw [mem_domGoal_iff]
   constructor
@@ -141,5 +74,6 @@ theorem domGoal_eq_noOversizeWord : DomGoal MAXPOS = NoOversizeWord MAXPOS := by
     obtain ⟨c, hc⟩ :=
       (trimmed_nonempty_iff MAXPOS b).2 ((mem_noOversizeWord_compacted_iff MAXPOS hb).2 hi)
     exact ⟨c, b, hb, hc⟩
+
 
 end Meyer.Paper

@@ -57,6 +57,8 @@ principle.
 
 namespace Meyer.Book
 
+variable {α : Type*}
+
 /-! ## Working with the `mu` operator -/
 
 /-- **The minimization lemma** (9.5.6, exercise 9-E.5): `μ a: A | c (a) | m (a)`
@@ -64,14 +66,18 @@ namespace Meyer.Book
 
 Meyer states it for finite `A`.  Over `ℕ` finiteness is needed only for a
 maximum, and `S1` takes only minima. -/
-theorem mu_nonempty_iff {A : Set Text} {c : Text → Prop} {m : Text → ℕ} :
+theorem mu_nonempty_iff {A : Set (Text α)} {c : Text α → Prop} {m : Text α → ℕ} :
     (Mu A c m).Nonempty ↔ ∃ a ∈ A, c a := by
   rw [Mu, minSet_nonempty_iff]
   exact ⟨fun ⟨a, ha, hc⟩ => ⟨a, ha, hc⟩, fun ⟨a, ha, hc⟩ => ⟨a, ha, hc⟩⟩
 
+section Alphabet
+
+variable [Alphabet α]
+
 /-- Membership in the first stage of `S1`: a recast of `i`, no longer than any
 other. -/
-lemma mem_minRecasts_iff {i o : Text} :
+lemma mem_minRecasts_iff {i o : Text α} :
     o ∈ MinRecasts i ↔ Recast i o ∧ ∀ y, Recast i y → o.length ≤ y.length := by
   constructor
   · rintro ⟨⟨ho, -⟩, hmin⟩
@@ -80,11 +86,11 @@ lemma mem_minRecasts_iff {i o : Text} :
     exact ⟨⟨ho, trivial⟩, fun y hy => hmin y hy.1⟩
 
 /-- There is always a shortest recast. -/
-lemma minRecasts_nonempty (i : Text) : (MinRecasts i).Nonempty :=
+lemma minRecasts_nonempty (i : Text α) : (MinRecasts i).Nonempty :=
   minSet_nonempty _ ⟨i, recast_refl i, trivial⟩
 
 /-- Membership in `S1` unfolded. -/
-lemma mem_solutions_iff {M : ℕ} {i o : Text} :
+lemma mem_solutions_iff [DecidableEq α] {M : ℕ} {i o : Text α} :
     o ∈ Solutions M i ↔
       (o ∈ MinRecasts i ∧ maxLine o ≤ M) ∧
         ∀ y ∈ MinRecasts i, maxLine y ≤ M → newLines o ≤ newLines y :=
@@ -92,19 +98,21 @@ lemma mem_solutions_iff {M : ℕ} {i o : Text} :
     fun ⟨h₁, h₂⟩ => ⟨h₁, fun y hy => h₂ y hy.1 hy.2⟩⟩
 
 /-- A solution is in particular a shortest recast. -/
-lemma solutions_subset_minRecasts (M : ℕ) (i : Text) : Solutions M i ⊆ MinRecasts i :=
+lemma solutions_subset_minRecasts [DecidableEq α] (M : ℕ) (i : Text α) :
+    Solutions M i ⊆ MinRecasts i :=
   fun _ ho => ho.1.1
 
 /-! ## Lines -/
 
 /-- The form used on concrete texts: the quantification is bounded, so `decide`
 can discharge it. -/
-lemma maxLine_le_of_tails {t : Text} {N : ℕ}
+lemma maxLine_le_of_tails {t : Text α} {N : ℕ}
     (h : ∀ u ∈ t.tails, ∀ v ∈ u.inits, newline ∉ v → v.length ≤ N) : maxLine t ≤ N :=
   maxRun_le_of_tails fun u hu v hv hp => h u hu v hv fun hmem => hp newline hmem rfl
 
 /-- A text with no new line in it is one long line. -/
-private lemma length_le_maxLine_of_no_newline {t : Text} (h : newline ∉ t) : t.length ≤ maxLine t :=
+lemma length_le_maxLine_of_no_newline {t : Text α} (h : newline ∉ t) :
+    t.length ≤ maxLine t :=
   le_maxRun (List.infix_refl t) fun _ hc hcn => h (hcn ▸ hc)
 
 /-! ## `T2`, and the equivalence of `M5` and `M6` -/
@@ -112,7 +120,7 @@ private lemma length_le_maxLine_of_no_newline {t : Text} (h : newline ∉ t) : t
 /-- **`T2`**: `maxword (out) ≤ maxline (out)`.  Meyer: "follows directly from
 comparing `M4` and `M6`" -- every run of letters is a run of characters other
 than `new_line`. -/
-theorem maxWord_le_maxLine (t : Text) : maxWord t ≤ maxLine t :=
+theorem maxWord_le_maxLine (t : Text α) : maxWord t ≤ maxLine t :=
   maxRun_mono (fun _ hc hcn => hc (Or.inr hcn)) t
 
 /-- Meyer's remark that `M5` and `M6` define the same function: "Given the
@@ -121,8 +129,10 @@ definition of `CHARACTER` we could equivalently define `maxline (in)` as
 
 It holds because `CHARACTER ≜ LETTER ∪ SEPARATOR` and `SEPARATOR ≜ {space,
 new_line}`, both from the box on p. 172, so a character is other than `new_line`
-exactly when it is a letter or a space. -/
-theorem maxLine_eq_maxRun_letter_or_blank (t : Text) :
+exactly when it is a letter or a space -- provided `space` and `new_line` are
+two characters and not one, which neither box says and the remark needs: on an
+alphabet where they coincide, `new_line` is a space and `M6` counts it. -/
+theorem maxLine_eq_maxRun_letter_or_blank (h : (blank : α) ≠ newline) (t : Text α) :
     maxLine t = maxRun (fun c => IsLetter c ∨ c = blank) t := by
   refine maxRun_congr (fun c => ?_) t
   constructor
@@ -132,7 +142,7 @@ theorem maxLine_eq_maxRun_letter_or_blank (t : Text) :
     · exact Or.inl fun hs => hs.elim hb h
   · rintro (hl | rfl)
     · exact fun hcn => hl (Or.inr hcn)
-    · exact blank_ne_newline
+    · exact h
 
 /-! ## `T6`: the output has no leading or trailing break
 
@@ -146,7 +156,7 @@ retains one break character at each end.  See the header of
 `Meyer.Book.Spec`. -/
 
 /-- A shortest recast does not begin with a separator: `[L]` would shorten it. -/
-lemma head_not_isSeparator {i o : Text} (ho : o ∈ MinRecasts i) {c : Char} {t : Text}
+lemma head_not_isSeparator {i o : Text α} (ho : o ∈ MinRecasts i) {c : α} {t : Text α}
     (h : o = c :: t) : ¬ IsSeparator c := by
   intro hc
   obtain ⟨hor, homin⟩ := mem_minRecasts_iff.1 ho
@@ -157,7 +167,7 @@ lemma head_not_isSeparator {i o : Text} (ho : o ∈ MinRecasts i) {c : Char} {t 
   omega
 
 /-- Nor does it end with one: `[T]` would shorten it. -/
-lemma getLast_not_isSeparator {i o : Text} (ho : o ∈ MinRecasts i) {t : Text} {c : Char}
+lemma getLast_not_isSeparator {i o : Text α} (ho : o ∈ MinRecasts i) {t : Text α} {c : α}
     (h : o = t ++ [c]) : ¬ IsSeparator c := by
   intro hc
   obtain ⟨hor, homin⟩ := mem_minRecasts_iff.1 ho
@@ -170,9 +180,10 @@ lemma getLast_not_isSeparator {i o : Text} (ho : o ∈ MinRecasts i) {t : Text} 
 /-- **`T6`**: "Can the output text start or end with a break? ... the answer is no
 in this version."  A solution is in particular a shortest recast, and a shortest
 recast has no separator at either end -- `[L]` and `[T]` would shorten it. -/
-theorem solution_not_isSeparator_at_ends {M : ℕ} {i o : Text} (ho : o ∈ Solutions M i) :
-    (∀ (c : Char) (t : Text), o = c :: t → ¬ IsSeparator c) ∧
-      (∀ (t : Text) (c : Char), o = t ++ [c] → ¬ IsSeparator c) :=
+theorem solution_not_isSeparator_at_ends [DecidableEq α] {M : ℕ} {i o : Text α}
+    (ho : o ∈ Solutions M i) :
+    (∀ (c : α) (t : Text α), o = c :: t → ¬ IsSeparator c) ∧
+      (∀ (t : Text α) (c : α), o = t ++ [c] → ¬ IsSeparator c) :=
   ⟨fun _ _ h => head_not_isSeparator (solutions_subset_minRecasts M i ho) h,
     fun _ _ h => getLast_not_isSeparator (solutions_subset_minRecasts M i ho) h⟩
 
@@ -197,13 +208,15 @@ prefix whose longest word fits within `M`; an all-separator text has longest wor
 `0`, so `P` is the whole input and `S2` reduces to `S1` on it.  `T7` then gives the
 empty output.  `S2` is not formalised here, so that last step is a remark rather
 than a theorem. -/
-theorem solutions_of_forall_isSeparator {M : ℕ} {i : Text} (h : ∀ c ∈ i, IsSeparator c) :
+theorem solutions_of_forall_isSeparator [DecidableEq α] {M : ℕ} {i : Text α}
+    (h : ∀ c ∈ i, IsSeparator c) :
     Solutions M i = {[]} := by
   have hnil : Recast i [] := by
     rcases eq_or_ne i [] with rfl | hne
     · exact recast_refl []
-    · exact recast_of_recast1 (by simpa using recast1_dropLeading (o := ([] : Text)) ⟨hne, h⟩)
-  have hmin : ([] : Text) ∈ MinRecasts i := mem_minRecasts_iff.2 ⟨hnil, by simp⟩
+    · exact recast_of_recast1
+        (by simpa using recast1_dropLeading (o := ([] : Text α)) ⟨hne, h⟩)
+  have hmin : ([] : Text α) ∈ MinRecasts i := mem_minRecasts_iff.2 ⟨hnil, by simp⟩
   ext o
   simp only [Set.mem_singleton_iff]
   constructor
@@ -224,7 +237,8 @@ is of minimum length, take any shortest recast -- one exists because `ℕ` is
 well-ordered -- and turn its spaces into new lines, which is a recast and changes
 no length.  Each line of the result is a single word, so the longest line is the
 longest word, which recasting has not changed. -/
-theorem feasibility (M : ℕ) (i : Text) : (Solutions M i).Nonempty ↔ maxWord i ≤ M := by
+theorem feasibility [DecidableEq α] (M : ℕ) (i : Text α) :
+    (Solutions M i).Nonempty ↔ maxWord i ≤ M := by
   rw [Solutions, mu_nonempty_iff]
   constructor
   · rintro ⟨o, ho, hmax⟩
@@ -237,9 +251,15 @@ theorem feasibility (M : ℕ) (i : Text) : (Solutions M i).Nonempty ↔ maxWord 
       ⟨recast_trans hor (recast_allNewlines o), fun y hy => ?_⟩, ?_⟩
     · rw [length_allNewlines]
       exact homin y hy
-    · rw [maxLine_eq_maxWord_of_no_blank (blank_not_mem_allNewlines o),
+    · rw [maxLine_eq_maxWord_of_forall fun _ hc hn => ne_blank_of_mem_allNewlines hc hn,
         ← maxWord_eq_of_recast (recast_allNewlines o), ← maxWord_eq_of_recast hor]
       exact h
+
+/-- Two spaces are a break. -/
+lemma break_blanks : ([blank, blank] : Text α) ∈ Break :=
+  ⟨List.cons_ne_nil _ _, by simp [IsSeparator, IsBreak]⟩
+
+end Alphabet
 
 /-! ## `T5`: the specification is nondeterministic
 
@@ -247,96 +267,113 @@ Meyer: "This specification is, in addition, **non-deterministic** ... Did you
 notice that the solution given to the example on page 172 was not the only
 possible one?  Solution `other` is just as correct as the original `out`."
 
-The witness is his, from p. 176: the input `␣␣ABC␣␣D␣␣EFG` at `M = 5`, which the
-specification relates both to `ABC␣D / EFG` and to `ABC / D␣EFG`. -/
+This is the one theorem of the eight that uses the book's assumption
+`LETTER ≠ ∅`, and it needs one more that neither box states: that `space` and
+`new_line` are two characters.  With a letter `c` the input `c cc c` at `M = 4`
+has the outputs `c cc / c` and `c / cc c`, which differ only in which of the
+two separators stands where; on an alphabet without letters every text is a
+break and `S1` is a function, and on one where the separators coincide the two
+outputs are the same text.
 
-section Example
+Meyer's own witness, `␣␣ABC␣␣D␣␣EFG` at `M = 5` (p. 176), which the
+specification relates both to `ABC␣D / EFG` and to `ABC / D␣EFG`, is a text over
+`Char` and lives in `Meyer.Book.Examples`. -/
 
-/-- Meyer's input, `␣␣ABC␣␣D␣␣EFG` (p. 176).
+section Nondeterminism
 
-The definitions and lemmas of this section are public because
-`Meyer.Book.Bug` reuses them: the defect it exhibits is a third output for this
-same input, which the specification as Meyer writes it accepts and the
-specification he describes rejects. -/
-def exIn : Text := "  ABC  D  EFG".toList
+variable [Lettered α]
 
-/-- His `out`: the break after `D` becomes the line break. -/
-def exOut₁ : Text := "ABC D\nEFG".toList
+/-- With one letter `c`, the input `c cc c`. -/
+def tIn (c : α) : Text α := [c, blank, c, c, blank, c]
 
-/-- His `other`: the break after `ABC` becomes the line break. -/
-private def exOut₂ : Text := "ABC\nD EFG".toList
+/-- `c cc / c`. -/
+def tOut₁ (c : α) : Text α := [c, blank, c, c, newline, c]
 
-/-- Two spaces are a break. -/
-lemma break_blanks : [blank, blank] ∈ Break := ⟨by decide, by decide⟩
+/-- `c / cc c`. -/
+private def tOut₂ (c : α) : Text α := [c, newline, c, c, blank, c]
 
-private lemma recast_exOut₁ : Recast exIn exOut₁ :=
-  recast_trans
-    (recast_of_recast1 (recast1_dropLeading (b := [blank, blank])
-      (o := "ABC  D  EFG".toList) break_blanks))
-    (recast_trans
-      (recast_of_recast1 (recast1_replace (b := [blank, blank]) (x := "ABC".toList)
-        (y := "D  EFG".toList) break_blanks (s := blank) (Or.inl rfl)))
-      (recast_of_recast1 (recast1_replace (b := [blank, blank]) (x := "ABC D".toList)
-        (y := "EFG".toList) break_blanks (s := newline) (Or.inr rfl))))
+private lemma words_tIn [DecidableEq α] {c : α} (hc : ¬ IsBreak c) :
+    words (tIn c) = [[c], [c, c], [c]] := by
+  have hl : ∀ x ∈ [c, c], IsLetter x := by
+    intro x hx
+    rw [List.mem_cons, List.mem_singleton, or_self] at hx
+    exact hx ▸ hc
+  rw [tIn, show [c, blank, c, c, blank, c] = [c] ++ blank :: ([c, c] ++ blank :: [c]) from rfl,
+    words_append_sep (Or.inl rfl), words_append_sep (Or.inl rfl),
+    words_of_forall_letter (List.cons_ne_nil _ _) fun x hx => hl x (List.mem_cons_of_mem _ hx),
+    words_of_forall_letter (List.cons_ne_nil _ _) hl]
+  rfl
 
-private lemma recast_exOut₂ : Recast exIn exOut₂ :=
-  recast_trans
-    (recast_of_recast1 (recast1_dropLeading (b := [blank, blank])
-      (o := "ABC  D  EFG".toList) break_blanks))
-    (recast_trans
-      (recast_of_recast1 (recast1_replace (b := [blank, blank]) (x := "ABC".toList)
-        (y := "D  EFG".toList) break_blanks (s := newline) (Or.inr rfl)))
-      (recast_of_recast1 (recast1_replace (b := [blank, blank]) (x := "ABC\nD".toList)
-        (y := "EFG".toList) break_blanks (s := blank) (Or.inl rfl))))
-
-/-- `exIn` has three words of seven letters, so no recast of it is shorter than
-nine characters. -/
-private lemma nine_le_length_of_recast {y : Text} (h : Recast exIn y) : 9 ≤ y.length := by
+/-- Six characters is the least a recast of `c cc c` can have: four letters and
+two gaps. -/
+private lemma six_le_length_of_recast [DecidableEq α] {c : α} (hc : ¬ IsBreak c) {y : Text α}
+    (h : Recast (tIn c) y) : 6 ≤ y.length := by
   have hb := le_length_of_recast h
-  rw [show words exIn = ["ABC".toList, "D".toList, "EFG".toList] from by decide,
-    show (["ABC".toList, "D".toList, "EFG".toList] : List Text).flatten.length = 7 from by decide,
-    show (["ABC".toList, "D".toList, "EFG".toList] : List Text).length = 3 from by decide] at hb
+  rw [words_tIn hc] at hb
+  simp only [List.flatten_cons, List.flatten_nil, List.length_append, List.length_cons,
+    List.length_nil] at hb
   omega
 
-/-- Nine characters is the minimum, so any nine-character recast attains it. -/
-lemma mem_minRecasts_of_length_nine {o : Text} (ho : Recast exIn o) (h : o.length = 9) :
-    o ∈ MinRecasts exIn :=
-  mem_minRecasts_iff.2 ⟨ho, fun _ hy => h ▸ nine_le_length_of_recast hy⟩
+/-- Six characters is the minimum, so any six-character recast attains it. -/
+lemma mem_minRecasts_of_length_six [DecidableEq α] {c : α} (hc : ¬ IsBreak c)
+    {o : Text α} (ho : Recast (tIn c) o) (h : o.length = 6) : o ∈ MinRecasts (tIn c) :=
+  mem_minRecasts_iff.2 ⟨ho, fun _ hy => h ▸ six_le_length_of_recast hc hy⟩
 
-/-- Nothing acceptable fits on one line: every shortest recast has nine
-characters, and `M` is five.  Both readings of `M3` need this. -/
-lemma newline_mem_of_mem_minRecasts {y : Text} (hy : y ∈ MinRecasts exIn)
-    (hmax : maxLine y ≤ 5) : newline ∈ y := by
-  by_contra hnn
-  have h9 := nine_le_length_of_recast (mem_minRecasts_iff.1 hy).1
+/-- Nothing acceptable fits on one line: a shortest recast has six characters
+and `M` is four. -/
+lemma one_le_newLines_tIn [DecidableEq α] {c : α} (hc : ¬ IsBreak c) {y : Text α}
+    (hy : y ∈ MinRecasts (tIn c)) (hmax : maxLine y ≤ 4) : 1 ≤ newLines y := by
+  refine Nat.one_le_iff_ne_zero.2 fun h0 => ?_
+  have hnn : newline ∉ y := List.count_eq_zero.1 h0
+  have h6 := six_le_length_of_recast hc (mem_minRecasts_iff.1 hy).1
   have := length_le_maxLine_of_no_newline hnn
   omega
 
-/-- The same in the form `T5` uses. -/
-private lemma one_le_newLines {y : Text} (hy : y ∈ MinRecasts exIn) (hmax : maxLine y ≤ 5) :
-    1 ≤ newLines y :=
-  Nat.one_le_iff_ne_zero.2 fun h =>
-    List.count_eq_zero.1 h (newline_mem_of_mem_minRecasts hy hmax)
+/-- `c cc c` recasts to `c cc / c` by `[R]` on its second break. -/
+lemma recast_tOut₁ (c : α) : Recast (tIn c) (tOut₁ c) :=
+  recast_of_recast1 (by
+    simpa [tIn, tOut₁] using recast1_replace (b := [blank]) (x := [c, blank, c, c]) (y := [c])
+      (singleton_mem_break (Or.inl rfl)) (s := newline) (Or.inr rfl))
 
-/-- Meyer's `out` is a solution.  `Meyer.Book.Bug` reuses this. -/
-lemma goal_exOut₁ : Goal 5 exIn exOut₁ :=
-  mem_solutions_iff.2
-    ⟨⟨mem_minRecasts_of_length_nine recast_exOut₁ (by decide),
-      maxLine_le_of_tails (by decide)⟩,
-      fun y hy hmy => by rw [show newLines exOut₁ = 1 from by decide]; exact one_le_newLines hy hmy⟩
+private lemma recast_tOut₂ (c : α) : Recast (tIn c) (tOut₂ c) :=
+  recast_of_recast1 (by
+    simpa [tIn, tOut₂] using recast1_replace (b := [blank]) (x := [c]) (y := [c, c, blank, c])
+      (singleton_mem_break (Or.inl rfl)) (s := newline) (Or.inr rfl))
 
-private lemma goal_exOut₂ : Goal 5 exIn exOut₂ :=
-  mem_solutions_iff.2
-    ⟨⟨mem_minRecasts_of_length_nine recast_exOut₂ (by decide),
-      maxLine_le_of_tails (by decide)⟩,
-      fun y hy hmy => by rw [show newLines exOut₂ = 1 from by decide]; exact one_le_newLines hy hmy⟩
+/-- A new line splits the runs, and neither side is longer than four. -/
+lemma maxLine_le_four {x y : Text α} (hx : x.length ≤ 4) (hy : y.length ≤ 4) :
+    maxLine (x ++ [newline] ++ y) ≤ 4 := by
+  rw [maxLine, maxRun_append_mid (by simp) (by simp)]
+  exact max_le (maxRun_le fun t ht _ => ht.length_le.trans hx)
+    (maxRun_le fun t ht _ => ht.length_le.trans hy)
+
+/-- `c cc / c` is a solution.  `Meyer.Book.Bug` reuses this. -/
+lemma goal_tOut₁ [DecidableEq α] {c : α} (hc : ¬ IsBreak c)
+    (h : (blank : α) ≠ newline) : Goal 4 (tIn c) (tOut₁ c) := by
+  have hcn : c ≠ newline := fun e => hc (Or.inr e)
+  refine mem_solutions_iff.2 ⟨⟨mem_minRecasts_of_length_six hc (recast_tOut₁ c) rfl,
+    maxLine_le_four (x := [c, blank, c, c]) (y := [c]) (by simp) (by simp)⟩, fun y hy hmy => ?_⟩
+  rw [show newLines (tOut₁ c) = 1 from by simp [newLines, tOut₁, hcn, h]]
+  exact one_le_newLines_tIn hc hy hmy
+
+private lemma goal_tOut₂ [DecidableEq α] {c : α} (hc : ¬ IsBreak c)
+    (h : (blank : α) ≠ newline) : Goal 4 (tIn c) (tOut₂ c) := by
+  have hcn : c ≠ newline := fun e => hc (Or.inr e)
+  refine mem_solutions_iff.2 ⟨⟨mem_minRecasts_of_length_six hc (recast_tOut₂ c) rfl,
+    maxLine_le_four (x := [c]) (y := [c, c, blank, c]) (by simp) (by simp)⟩, fun y hy hmy => ?_⟩
+  rw [show newLines (tOut₂ c) = 1 from by simp [newLines, tOut₂, hcn, h]]
+  exact one_le_newLines_tIn hc hy hmy
 
 /-- **`T5`**: "Can there be more than one solution for a given input?  ... the
-answer in the formal specification is a clear yes." -/
-theorem goal_not_functional :
-    ∃ (M : ℕ) (i o₁ o₂ : Text), Goal M i o₁ ∧ Goal M i o₂ ∧ o₁ ≠ o₂ :=
-  ⟨5, exIn, exOut₁, exOut₂, goal_exOut₁, goal_exOut₂, by decide⟩
+answer in the formal specification is a clear yes."  On any alphabet with a
+letter and two distinct separators. -/
+theorem goal_not_functional [DecidableEq α] (h : (blank : α) ≠ newline) :
+    ∃ (M : ℕ) (i o₁ o₂ : Text α), Goal M i o₁ ∧ Goal M i o₂ ∧ o₁ ≠ o₂ := by
+  obtain ⟨c, hc⟩ := Lettered.exists_letter (α := α)
+  exact ⟨4, tIn c, tOut₁ c, tOut₂ c, goal_tOut₁ hc h, goal_tOut₂ hc h,
+    by simp [tOut₁, tOut₂, h]⟩
 
-end Example
+end Nondeterminism
+
 
 end Meyer.Book

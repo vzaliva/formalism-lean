@@ -27,131 +27,109 @@ leading blank where it is -- the line `␣AB` is three characters long -- so it 
 turn it into a new line, and the unique output has an **empty first line**.  The
 book's specification deletes it.
 
-`specifications_differ` proves both halves: each specification's output for that
-input is rejected by the other.  That is the whole of what is proved here.  Three
-natural strengthenings are *not*, and are recorded as remarks rather than
-theorems:
+That example needs letters and is worked out at `Char` in
+`Meyer.Comparison.Examples`.  What is proved here, for every alphabet, is the
+same divergence on the smallest possible input: `specifications_differ` shows
+that for the one-character text `[space]` at line limit one each specification's
+output is rejected by the other -- the paper keeps the space, the book deletes it
+(`T7`) -- and `paper_ne_book` states it as an inequality of relations.  Three
+natural strengthenings are *not* proved, and are recorded as remarks:
 
 * that each specification's output for that input is unique;
 * that the disagreement is confined to the separators at the two ends, so that
   the two relations coincide on inputs with neither;
-* that for an input of separators only the book yields the empty text -- which is
-  `Meyer.Book.solutions_of_forall_isSeparator` -- while the 1985 specification
-  yields a single space, because its `COMPACTED` again keeps one break character.
-  This last holds only for `MAXPOS ≥ 1`: at `MAXPOS = 0` a space is a line one
-  character long and is excluded, and the paper's output for `[space]` is
-  `[new_line]`.
+* that the disagreement extends to an input of separators only: the book
+  yields the empty text, `Meyer.Book.solutions_of_forall_isSeparator`, while the
+  1985 specification yields a single space, because its `COMPACTED` again keeps
+  one break character.  At `MAXPOS = 0` a space is a line one character long and
+  is excluded, and the paper's output for `[space]` is `[new_line]` instead.
 
-The third would settle a question Meyer raises as `T7` and leaves open for the
-natural-language originals: "the original specification could be construed,
-although not conclusively, to yield a one-space output".
+The third is what `specifications_differ` proves, for `MAXPOS = 1`.  It settles
+against the 1985 specification a question Meyer raises as `T7` and leaves open
+for the natural-language originals: "the original specification could be
+construed, although not conclusively, to yield a one-space output".
 -/
 
 namespace Meyer.Comparison
 
-/-! ## The witness
+/-! ## On every alphabet: a lone space
 
-A blank, then a two-letter word, with a line limit of two. -/
+The witness is the one-character text `[space]`, a text of every alphabet.  The
+paper compacts it to itself and, at a line limit of one, keeps it; the book
+deletes it. -/
 
-/-- The input `␣AB`. -/
-private def cIn : Text := " AB".toList
+section Generic
 
-/-- What the 1985 specification produces: an empty first line. -/
-private def cPaper : Text := "\nAB".toList
+variable {α : Type*} [DecidableEq α] [Alphabet α]
 
-/-- What the 2022 specification produces: the blank is gone. -/
-private def cBook : Text := "AB".toList
+/-- The 1985 specification keeps a lone space.  Everything reachable from
+`[space]` is `[space]` or `[new_line]`, and neither has fewer new lines. -/
+private lemma paper_goal_blank : Paper.Goal 1 [(blank : α)] [blank] := by
+  have hnd : Paper.NoDoubleBreak [(blank : α)] := List.isChain_singleton _
+  refine ⟨⟨[blank], Paper.mem_compacted_self hnd, List.forall₂_same.2 fun _ _ => Or.inl rfl,
+    maxRun_le fun t ht _ => by simpa using ht.length_le⟩, fun y hy => ?_⟩
+  obtain ⟨b, hb, hy, -⟩ := hy
+  obtain rfl : b = [blank] := by
+    have hlen := Paper.length_eq_of_mem_compacted hnd hb
+    rcases List.sublist_singleton.1 hb.1.1 with rfl | rfl
+    · simp at hlen
+    · rfl
+  rcases y with _ | ⟨c, y⟩
+  · exact absurd (List.forall₂_nil_left_iff.1 hy) (List.cons_ne_nil _ _)
+  · obtain ⟨hc, hy'⟩ := List.forall₂_cons.1 hy
+    obtain rfl : y = [] := List.forall₂_nil_right_iff.1 hy'
+    rcases hc with rfl | ⟨hc, -⟩
+    · exact le_rfl
+    · rcases hc with rfl | rfl
+      · exact le_rfl
+      · exact (List.count_le_length (a := newline) (l := [blank])).trans
+          (by simp [Paper.numberOfNewLines])
 
-/-! ## The paper's answer -/
-
-private lemma cIn_noDoubleBreak : Paper.NoDoubleBreak cIn := by decide
-
-/-- Everything the paper's specification can reach from `␣AB` has three
-characters: compaction cannot shorten a text that already has single breaks, and
-break substitution never changes a length. -/
-private lemma length_of_mem_transf {y : Text} (hy : y ∈ Paper.Transf 2 cIn) :
-    y.length = 3 := by
-  obtain ⟨b, hb, hEquiv, -⟩ := hy
-  rw [Paper.length_eq_of_mem_equivalent hEquiv,
-    Paper.length_eq_of_mem_compacted cIn_noDoubleBreak hb]
-  decide
-
-/-- So none of them fits on a single line of two characters. -/
-private lemma one_le_newlines {y : Text} (hy : y ∈ Paper.Transf 2 cIn) :
-    1 ≤ Paper.numberOfNewLines y := by
-  by_contra hcon
-  have hzero : Paper.numberOfNewLines y = 0 := by omega
-  have hnn : newline ∉ y := List.count_eq_zero.1 hzero
-  have hlen := length_of_mem_transf hy
-  have := Paper.length_le_maxLineLength_of_no_newline hnn
-  have hbound : Paper.maxLineLength y ≤ 2 := hy.choose_spec.2.2
-  omega
-
-private lemma paper_goal_cPaper : Paper.Goal 2 cIn cPaper := by
-  refine ⟨⟨cIn, Paper.mem_compacted_self cIn_noDoubleBreak, by decide,
-    Paper.maxLineLength_le_of_tails (by decide)⟩, fun y hy => ?_⟩
-  rw [show Paper.numberOfNewLines cPaper = 1 from by decide]
-  exact one_le_newlines hy
-
-/-- The paper insists on three characters, so it rejects the book's answer. -/
-private lemma not_paper_goal_cBook : ¬ Paper.Goal 2 cIn cBook := by
+/-- The 2022 specification deletes it: `T7`. -/
+private lemma not_book_goal_blank : ¬ Book.Goal 1 [(blank : α)] [blank] := by
   intro h
-  exact absurd (length_of_mem_transf h.1) (by decide)
+  have h7 := Book.solutions_of_forall_isSeparator (M := 1) (i := [(blank : α)])
+    fun c hc => by rw [List.mem_singleton] at hc; exact hc ▸ Or.inl rfl
+  rw [Book.Goal, h7, Set.mem_singleton_iff] at h
+  exact List.cons_ne_nil _ _ h
 
-/-! ## The book's answer -/
+/-- The 2022 specification's output for a lone space is the empty text: `T7`. -/
+private lemma book_goal_blank_nil : Book.Goal 1 [(blank : α)] [] := by
+  have h7 := Book.solutions_of_forall_isSeparator (M := 1) (i := [(blank : α)])
+    fun c hc => by rw [List.mem_singleton] at hc; exact hc ▸ Or.inl rfl
+  rw [Book.Goal, h7]
+  exact Set.mem_singleton _
 
-private lemma recast_cBook : Book.Recast cIn cBook :=
-  Book.recast_of_recast1
-    (Book.recast1_dropLeading (b := [blank]) (o := cBook)
-      (Book.singleton_mem_break (Or.inl rfl)))
-
-/-- `␣AB` has one word of two letters, so no recast of it is shorter than two
-characters. -/
-private lemma two_le_length_of_recast {y : Text} (h : Book.Recast cIn y) : 2 ≤ y.length := by
-  have hb := Book.le_length_of_recast h
-  rw [show Book.words cIn = [cBook] from by decide] at hb
-  simp only [List.flatten_cons, List.flatten_nil, List.append_nil, List.length_cons,
-    List.length_nil] at hb
-  have : cBook.length = 2 := by decide
+/-- The 1985 specification rejects the empty text: everything reachable from
+`[space]` has one character. -/
+private lemma not_paper_goal_blank_nil : ¬ Paper.Goal 1 [(blank : α)] [] := by
+  rintro ⟨⟨b, hb, hy, -⟩, -⟩
+  have h1 := Paper.length_eq_of_mem_equivalent hy
+  have h2 := Paper.length_eq_of_mem_compacted (List.isChain_singleton _) hb
+  simp only [List.length_nil, List.length_singleton] at h1 h2
   omega
 
-private lemma book_goal_cBook : Book.Goal 2 cIn cBook :=
-  Book.mem_solutions_iff.2
-    ⟨⟨Book.mem_minRecasts_iff.2 ⟨recast_cBook, fun _ hy => two_le_length_of_recast hy⟩,
-      Book.maxLine_le_of_tails (by decide)⟩,
-      fun _ _ _ => by rw [show Book.newLines cBook = 0 from by decide]; exact Nat.zero_le _⟩
+/-- **The two specifications are not the same relation**, on every alphabet.
 
-/-- The book takes the shortest recast, so it rejects the paper's answer: the
-leading break can always be dropped. -/
-private lemma not_book_goal_cPaper : ¬ Book.Goal 2 cIn cPaper := by
-  intro h
-  have hle := (Book.mem_minRecasts_iff.1 (Book.solutions_subset_minRecasts 2 cIn h)).2
-    cBook recast_cBook
-  have h1 : cPaper.length = 3 := by decide
-  have h2 : cBook.length = 2 := by decide
-  omega
-
-/-! ## The comparison -/
-
-/-- **The two specifications are not the same relation.**
-
-For the input `␣AB` with a line limit of two characters, each of Meyer's two
-specifications produces an output that the other rejects: the 1985 one an empty
-first line, the 2022 one no first line at all.
+For the input `[space]` with a line limit of one, each of Meyer's two
+specifications produces an output that the other rejects: the 1985 one keeps
+the space, the 2022 one deletes it.
 
 One separating example is enough to show the relations differ, which is all this
 states.  Where they differ, and whether they agree elsewhere, is discussed in the
 module header and is not proved. -/
 theorem specifications_differ :
-    ∃ (M : ℕ) (i o₁ o₂ : Text),
+    ∃ (M : ℕ) (i o₁ o₂ : Text α),
       Paper.Goal M i o₁ ∧ ¬ Book.Goal M i o₁ ∧
       Book.Goal M i o₂ ∧ ¬ Paper.Goal M i o₂ :=
-  ⟨2, cIn, cPaper, cBook,
-    paper_goal_cPaper, not_book_goal_cPaper, book_goal_cBook, not_paper_goal_cBook⟩
+  ⟨1, [blank], [blank], [], paper_goal_blank, not_book_goal_blank, book_goal_blank_nil,
+    not_paper_goal_blank_nil⟩
 
-/-- The same, as an inequality of relations: at line limit two, the paper's
-`goal` and the book's `S1` are different elements of `Spec`. -/
-theorem paper_ne_book : ∃ M : ℕ, Paper.Goal M ≠ Book.Goal M :=
-  ⟨2, fun h => not_book_goal_cPaper (h ▸ paper_goal_cPaper)⟩
+/-- The same, as an inequality of relations: the two are different elements of
+`Spec α`. -/
+theorem paper_ne_book : ∃ M : ℕ, (Paper.Goal M : Spec α) ≠ Book.Goal M :=
+  ⟨1, fun h => not_book_goal_blank (h ▸ paper_goal_blank)⟩
+
+end Generic
 
 end Meyer.Comparison

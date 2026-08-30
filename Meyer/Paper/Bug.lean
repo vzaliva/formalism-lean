@@ -76,6 +76,10 @@ non-decreasing one (`singleBreaks_subset`), so the defect adds junk to
 
 namespace Meyer.Paper.Bug
 
+section
+
+variable {α : Type*} [Alphabet α]
+
 open Meyer.Paper
 
 /-- **Meyer's definition of subsequence, taken literally.**  `t = s ∘ u` for some
@@ -85,7 +89,7 @@ The equation `u.map (s[·]?) = t.map some` says exactly that `u` and `t` have th
 same length, every position in `u` is in range, and looking it up in `s` gives
 the corresponding element of `t`.  Meyer numbers positions from 1 and Lean from
 0, which is immaterial here. -/
-def SublistWithRepeats (t s : Text) : Prop :=
+def SublistWithRepeats (t s : Text α) : Prop :=
   ∃ u : List ℕ, u.IsChain (· ≤ ·) ∧ u.map (fun i => s[i]?) = t.map some
 
 /-- Repetition really is admitted: three copies of the character at one position
@@ -93,10 +97,11 @@ count as a subsequence of that text. -/
 example : SublistWithRepeats ['a', 'a', 'a'] ['x', 'a', 'y'] :=
   ⟨[1, 1, 1], by decide, by decide⟩
 
+omit [Alphabet α] in
 /-- Every genuine sublist is a subsequence in the literal sense too: it is
 `s ∘ u` for a strictly increasing `u`, and strictly increasing is in particular
 non-decreasing. -/
-private lemma sublistWithRepeats_of_sublist {t s : Text} (h : t.Sublist s) :
+private lemma sublistWithRepeats_of_sublist {t s : Text α} (h : t.Sublist s) :
     SublistWithRepeats t s := by
   obtain ⟨u, rfl, hu⟩ := List.sublist_eq_map_getElem h
   refine ⟨u.map Fin.val, (hu.map Fin.val fun _ _ hab => Nat.le_of_lt hab).isChain, ?_⟩
@@ -110,33 +115,34 @@ new definition.  `TRIMMED`, `limited_length`, `FEWEST_LINES` and
 `NoOversizeWord` are untouched and are taken from `Meyer`. -/
 
 /-- `SINGLE_BREAKS (a)` under the literal reading. -/
-def SingleBreaks (a : Text) : Set Text :=
+def SingleBreaks (a : Text α) : Set (Text α) :=
   {s | SublistWithRepeats s a ∧ NoDoubleBreak s}
 
 /-- The literal reading only enlarges `SINGLE_BREAKS`. -/
-theorem singleBreaks_subset (a : Text) : Meyer.Paper.SingleBreaks a ⊆ SingleBreaks a :=
+theorem singleBreaks_subset (a : Text α) : Meyer.Paper.SingleBreaks a ⊆ SingleBreaks a :=
   fun _ hs => ⟨sublistWithRepeats_of_sublist hs.1, hs.2⟩
 
 /-- `COMPACTED (a)` under the literal reading. -/
-def Compacted (a : Text) : Set Text :=
+def Compacted (a : Text α) : Set (Text α) :=
   MaxSet (SingleBreaks a) List.length
 
 /-- `short_breaks (a, b)` under the literal reading. -/
-def ShortBreaks (a b : Text) : Prop :=
+def ShortBreaks (a b : Text α) : Prop :=
   b ∈ Compacted a
 
 variable (MAXPOS : ℕ)
 
 /-- `TRANSF (i)` under the literal reading. -/
-def Transf (i : Text) : Set Text :=
+def Transf (i : Text α) : Set (Text α) :=
   {s | ∃ b, ShortBreaks i b ∧ LimitedLength MAXPOS b s}
 
 /-- `goal (i, o)` under the literal reading. -/
-def Goal (i o : Text) : Prop :=
+def Goal [DecidableEq α] (i o : Text α) : Prop :=
   o ∈ FewestLines (Transf MAXPOS i)
 
+variable (α) in
 /-- `dom (goal)` under the literal reading. -/
-def DomGoal : Set Text :=
+def DomGoal [DecidableEq α] : Set (Text α) :=
   {i | ∃ o, Goal MAXPOS i o}
 
 /-! ## The collapse -/
@@ -145,7 +151,7 @@ def DomGoal : Set Text :=
 member of `SINGLE_BREAKS (a)`: it is a subsequence under the literal reading
 (repeat that one position), and it contains no break characters at all, so
 certainly no two adjacent ones. -/
-private lemma replicate_mem_singleBreaks {a : Text} {p : ℕ} {c : Char}
+private lemma replicate_mem_singleBreaks {a : Text α} {p : ℕ} {c : α}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) (n : ℕ) :
     List.replicate n c ∈ SingleBreaks a := by
   constructor
@@ -159,7 +165,7 @@ private lemma replicate_mem_singleBreaks {a : Text} {p : ℕ} {c : Char}
 In Meyer's own terms this is the failure of `MAX_SET`'s finiteness side
 condition, and `COMPACTED (a)` has no value at all.  `Meyer.MaxSet` totalises
 `MAX_SET` as "no member does better", under which the value is `∅`. -/
-theorem compacted_eq_empty {a : Text} {p : ℕ} {c : Char}
+theorem compacted_eq_empty {a : Text α} {p : ℕ} {c : α}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
     Compacted a = ∅ := by
   ext x
@@ -171,7 +177,7 @@ theorem compacted_eq_empty {a : Text} {p : ℕ} {c : Char}
 
 /-- With `COMPACTED (a)` empty there is no `b` with `short_breaks (a, b)`, so
 nothing is reachable from `a` at all. -/
-private lemma transf_eq_empty {a : Text} {p : ℕ} {c : Char}
+private lemma transf_eq_empty {a : Text α} {p : ℕ} {c : α}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
     Transf MAXPOS a = ∅ := by
   ext x
@@ -182,9 +188,9 @@ private lemma transf_eq_empty {a : Text} {p : ℕ} {c : Char}
 
 /-- Hence `a` is outside the domain of the specification, however innocuous `a`
 is. -/
-private lemma not_mem_domGoal {a : Text} {p : ℕ} {c : Char}
+private lemma not_mem_domGoal [DecidableEq α] {a : Text α} {p : ℕ} {c : α}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
-    a ∉ DomGoal MAXPOS := by
+    a ∉ DomGoal α MAXPOS := by
   rintro ⟨o, ho, -⟩
   rw [transf_eq_empty MAXPOS hp hc] at ho
   exact ho
@@ -200,24 +206,31 @@ i.e. that the problem is solvable exactly for texts with no word longer than
 
 /-- A single letter is a text with no oversize word, for any `MAXPOS ≥ 1`: its
 only infixes have length `0` and `1`, and neither is `MAXPOS + 1`. -/
-private lemma singleton_mem_noOversizeWord (h : 1 ≤ MAXPOS) :
-    ['h'] ∈ NoOversizeWord MAXPOS := by
+private lemma singleton_mem_noOversizeWord (h : 1 ≤ MAXPOS) (c : α) :
+    [c] ∈ NoOversizeWord α MAXPOS := by
   intro t ht hlen
   have := ht.length_le
   simp only [List.length_cons, List.length_nil] at this
   omega
 
-/-- **Meyer's theorem fails under the literal reading.**  The text `"h"` contains
-no word longer than `MAXPOS`, so his characterisation places it in `dom (goal)`;
-the literal reading of "subsequence" places it outside.  The two cannot both
-stand, and since the characterisation is what he proves, the literal reading is
-the one that goes. -/
+end
+
+variable {α : Type*} [DecidableEq α] [Lettered α] (MAXPOS : ℕ)
+
+/-- **Meyer's theorem fails under the literal reading.**  A one-letter text
+contains no word longer than `MAXPOS`, so his characterisation places it in
+`dom (goal)`; the literal reading of "subsequence" places it outside.  The two
+cannot both stand, and since the characterisation is what he proves, the literal
+reading is the one that goes.
+
+The alphabet must have a letter for the text to exist, which is the book's
+`LETTER ≠ ∅`; on an alphabet of breaks only the two readings agree. -/
 theorem domGoal_ne_noOversizeWord (h : 1 ≤ MAXPOS) :
-    DomGoal MAXPOS ≠ NoOversizeWord MAXPOS := by
+    DomGoal α MAXPOS ≠ NoOversizeWord α MAXPOS := by
   intro hEq
-  have hin : ['h'] ∈ NoOversizeWord MAXPOS := singleton_mem_noOversizeWord MAXPOS h
-  have hout : ['h'] ∉ DomGoal MAXPOS :=
-    not_mem_domGoal MAXPOS (p := 0) (c := 'h') rfl (by decide)
+  obtain ⟨c, hc⟩ := Lettered.exists_letter (α := α)
+  have hin : [c] ∈ NoOversizeWord α MAXPOS := singleton_mem_noOversizeWord MAXPOS h c
+  have hout : [c] ∉ DomGoal α MAXPOS := not_mem_domGoal MAXPOS (p := 0) (c := c) rfl hc
   exact hout (hEq ▸ hin)
 
 end Meyer.Paper.Bug

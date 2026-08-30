@@ -33,7 +33,7 @@ short_breaks (r)  ->  limited_length (r)  ->  FEWEST_LINES (f)
 
 and defines `goal (i, o)` to hold exactly when `o ∈ FEWEST_LINES (TRANSF (i))`.
 The names below follow his, with `CamelCase` for `Set`- and `Prop`-valued
-definitions as is usual in Lean.  `Text`, `blank`, `newline`, `IsBreak`,
+definitions as is usual in Lean.  `Text α`, `blank`, `newline`, `IsBreak`,
 `MaxSet`, `MinSet` and `maxRun` are shared with the transcription of his 2022
 book chapter and live in `Meyer.Common`.
 
@@ -41,11 +41,13 @@ book chapter and live in `Meyer.Common`.
 
 * Meyer keeps `CHAR` abstract, noting that "the only property of CHAR that
   matters here is that CHAR contains two elements of particular interest,
-  `blank` and `new_line`".  We instantiate it at `Char`, so what follows is a
-  concrete model of the specification rather than the abstract transcription:
-  nothing below uses any property of `Char` beyond decidable equality and
-  `blank ≠ newline`, but the results are proved for that one alphabet and not
-  for an arbitrary one.
+  `blank` and `new_line`".  So does this transcription: everything is stated
+  over a type `α` with an instance of `Meyer.Alphabet`, which is that sentence
+  and nothing more -- not even that the two elements differ.  Equality of
+  characters is additionally assumed decidable where a definition tests it
+  (`number_of_new_lines` counts), which Meyer's classical mathematics does not
+  need to say; see `Meyer.Common`.  The worked example, `WHO WHAT WHEN`, is a
+  text over `Char` and lives in `Meyer.Paper.Examples`.
 
 * Meyer defines a subsequence of `s` as `s ∘ u` for `u` a *sorted* sequence of
   indices, where sorted means `u (i-1) ≤ u (i)`.  Taken literally the
@@ -63,6 +65,8 @@ book chapter and live in `Meyer.Common`.
 
 namespace Meyer.Paper
 
+variable {α : Type*} [Alphabet α]
+
 /-! ## Short breaks
 
 The first stage: runs of break characters in the input are compacted to a single
@@ -71,12 +75,12 @@ break, and every non-break character is retained. -/
 /-- Meyer's condition on `SINGLE_BREAKS`, transcribed as he writes it:
 `s (i-1) ∈ BREAK_CHAR → s (i) ∉ BREAK_CHAR`.  Equivalently, no two consecutive
 characters are break characters. -/
-def NoDoubleBreak (s : Text) : Prop :=
+def NoDoubleBreak (s : Text α) : Prop :=
   s.IsChain fun x y => IsBreak x → ¬ IsBreak y
 
 /-- `SINGLE_BREAKS (a)`: the subsequences of `a` in which no two consecutive
 characters are break characters. -/
-def SingleBreaks (a : Text) : Set Text :=
+def SingleBreaks (a : Text α) : Set (Text α) :=
   {s | s.Sublist a ∧ NoDoubleBreak s}
 
 /-- `COMPACTED (a) ≜ MAX_SET (SINGLE_BREAKS (a), length)`.
@@ -85,12 +89,12 @@ Meyer's remark on why this is the right definition: any `b ∈ COMPACTED (a)` mu
 have retained from `a` every non-break character -- had one been omitted it could
 be reinserted to give a longer element of `SINGLE_BREAKS (a)` -- and has a single
 break character wherever `a` had one or more consecutive ones. -/
-def Compacted (a : Text) : Set Text :=
+def Compacted (a : Text α) : Set (Text α) :=
   MaxSet (SingleBreaks a) List.length
 
 /-- `short_breaks (a, b) ≜ b ∈ COMPACTED (a)`: `a` and `b` are made of the same
 sequence of words and breaks, but the breaks in `b` are single characters. -/
-def ShortBreaks (a b : Text) : Prop :=
+def ShortBreaks (a b : Text α) : Prop :=
   b ∈ Compacted a
 
 /-! ## Limited length
@@ -102,7 +106,7 @@ result must have no line longer than `MAXPOS`. -/
 characters may be substituted for blanks or vice versa.  `List.Forall₂` forces
 the two sequences to have the same length, which is the first of Meyer's two
 conditions. -/
-def Equivalent (b : Text) : Set Text :=
+def Equivalent (b : Text α) : Set (Text α) :=
   {s | List.Forall₂ (fun x y => x = y ∨ (IsBreak x ∧ IsBreak y)) s b}
 
 /-- `max_line_length (s)`: "the maximum length of a line in `s`, expressed as the
@@ -115,33 +119,35 @@ A stretch of consecutive characters is an infix, so this is `maxRun` at the
 predicate "is not a new line"; `Meyer.Common` discharges there, once, that the
 set has a maximum.  The book's `maxline` (M5) is the same function, which is why
 `Meyer.Book` reuses this definition rather than restating it. -/
-noncomputable def maxLineLength (s : Text) : ℕ :=
+noncomputable def maxLineLength (s : Text α) : ℕ :=
   maxRun (fun c => c ≠ newline) s
 
+variable [DecidableEq α]
+
 /-- `number_of_new_lines (s) ≜ card {i | s (i) = new_line}`. -/
-def numberOfNewLines (s : Text) : ℕ :=
+def numberOfNewLines (s : Text α) : ℕ :=
   s.count newline
 
 variable (MAXPOS : ℕ)
 
 /-- `TRIMMED (b) ≜ {s ∈ EQUIVALENT (b) | max_line_length (s) ≤ MAXPOS}`. -/
-def Trimmed (b : Text) : Set Text :=
+def Trimmed (b : Text α) : Set (Text α) :=
   {s ∈ Equivalent b | maxLineLength s ≤ MAXPOS}
 
 /-- `limited_length (b, c) ≜ c ∈ TRIMMED (b)`. -/
-def LimitedLength (b c : Text) : Prop :=
+def LimitedLength (b c : Text α) : Prop :=
   c ∈ Trimmed MAXPOS b
 
 /-! ## Fewest lines, and the basic relation -/
 
 /-- `FEWEST_LINES (SSC) ≜ MIN_SET (SSC, number_of_new_lines)`: those elements of
 `SSC` having as few lines as possible. -/
-def FewestLines (SSC : Set Text) : Set Text :=
+def FewestLines (SSC : Set (Text α)) : Set (Text α) :=
   MinSet SSC numberOfNewLines
 
 /-- `TRANSF (i) ≜ {s | tr (i, s)}` where `tr ≜ limited_length ∘ short_breaks`.
 Meyer's `∘` is composition of relations, so this is the existential below. -/
-def Transf (i : Text) : Set Text :=
+def Transf (i : Text α) : Set (Text α) :=
   {s | ∃ b, ShortBreaks i b ∧ LimitedLength MAXPOS b s}
 
 /-- **The basic relation.** `goal (i, o)` holds between input `i` and output `o`
@@ -150,11 +156,12 @@ iff `o ∈ FEWEST_LINES (TRANSF (i))`.
 This is a relation and not a function: Meyer notes that "there may be more than
 one correct output for a given input; in other words, a truly general
 specification of the problem should be nondeterministic". -/
-def Goal (i o : Text) : Prop :=
+def Goal (i o : Text α) : Prop :=
   o ∈ FewestLines (Transf MAXPOS i)
 
+variable (α) in
 /-- `dom (goal)`, the inputs for which an acceptable output exists. -/
-def DomGoal : Set Text :=
+def DomGoal : Set (Text α) :=
   {i | ∃ o, Goal MAXPOS i o}
 
 /-! ## What it means for an implementation to be correct
@@ -167,15 +174,15 @@ its argument and its result; in mathematical terms, the function is included in
 He allows `sol` to be partial -- "there may be some inputs for which there is no
 acceptable solution (those not in the domain of `goal`), so `sol` may be a
 partial function" -- which is why the implementation is modelled here as
-`Text → Option Text` rather than `Text → Text`. -/
+`Text α → Option (Text α)` rather than `Text α → Text α`. -/
 
 /-- Meyer's correctness conditions, `dom (goal) ⊆ dom (sol)` and `sol ⊆ goal`.
 
 Nothing below uses this.  It is part of the transcription rather than of any
 proof: it records what Meyer demands of an implementation, and this development
 supplies no implementation to demand it of. -/
-def IsCorrect (sol : Text → Option Text) : Prop :=
-  (∀ i ∈ DomGoal MAXPOS, (sol i).isSome) ∧
+def IsCorrect (sol : Text α → Option (Text α)) : Prop :=
+  (∀ i ∈ DomGoal α MAXPOS, (sol i).isSome) ∧
   (∀ i o, sol i = some o → Goal MAXPOS i o)
 
 /-! ## The domain of the specification
@@ -185,12 +192,13 @@ no natural-language version of the problem does: the problem is solvable exactly
 when the input contains no word longer than `MAXPOS`.  He derives it from the
 definitions of `TRIMMED` and `max_line_length`. -/
 
+variable (α) in
 /-- The right-hand side of Meyer's theorem: "the domain of relation `goal`
 consists of sequences such that, if a character `c` is followed by `MAXPOS` other
 characters, at least one character among `c` and the other characters must be a
 break." -/
-def NoOversizeWord : Set Text :=
-  {s | ∀ t : Text, t.IsInfix s → t.length = MAXPOS + 1 → ∃ c ∈ t, IsBreak c}
+def NoOversizeWord : Set (Text α) :=
+  {s | ∀ t : Text α, t.IsInfix s → t.length = MAXPOS + 1 → ∃ c ∈ t, IsBreak c}
 
 /-!
 Meyer's two claims about this specification -- that its domain is exactly

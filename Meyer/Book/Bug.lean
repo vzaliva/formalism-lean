@@ -73,20 +73,24 @@ relation `goal` related nothing to anything.
 
 namespace Meyer.Book.Bug
 
+section Literal
+
+variable {α : Type*} [DecidableEq α] [Alphabet α]
+
 open Meyer.Book
 
 /-! ## The literal definition -/
 
 /-- `range s`: "the set of its values", 9.2.6. -/
-def range (s : Text) : Set Char :=
+def range (s : Text α) : Set α :=
   {c | c ∈ s}
 
 /-- **`M3` taken literally**: `|{x: range out | x = new_line}|`. -/
-noncomputable def newLines (s : Text) : ℕ :=
+noncomputable def newLines (s : Text α) : ℕ :=
   Set.ncard {c ∈ range s | c = newline}
 
 /-- The whole of the defect: the measure is a membership test. -/
-private lemma newLines_eq (s : Text) : newLines s = if newline ∈ s then 1 else 0 := by
+lemma newLines_eq (s : Text α) : newLines s = if newline ∈ s then 1 else 0 := by
   by_cases h : newline ∈ s
   · rw [if_pos h, newLines, show {c ∈ range s | c = newline} = {newline} by
       ext c; simp only [Set.mem_setOf_eq, Set.mem_singleton_iff, range]
@@ -98,7 +102,7 @@ private lemma newLines_eq (s : Text) : newLines s = if newline ∈ s then 1 else
     exact Set.ncard_empty _
 
 /-- However many lines a text has, the literal `M3` never exceeds one. -/
-theorem newLines_le_one (s : Text) : newLines s ≤ 1 := by
+theorem newLines_le_one (s : Text α) : newLines s ≤ 1 := by
   rw [newLines_eq]; split <;> omega
 
 /-! ## The specification under the literal reading
@@ -107,16 +111,16 @@ theorem newLines_le_one (s : Text) : newLines s ≤ 1 := by
 names shadow those of `Meyer.Book` on purpose. -/
 
 /-- `S1` with `M3` read literally. -/
-noncomputable def Solutions (M : ℕ) (i : Text) : Set Text :=
+noncomputable def Solutions (M : ℕ) (i : Text α) : Set (Text α) :=
   Mu (MinRecasts i) (fun o => maxLine o ≤ M) newLines
 
 /-- The relation it defines. -/
-def Goal (M : ℕ) (i o : Text) : Prop :=
+def Goal (M : ℕ) (i o : Text α) : Prop :=
   o ∈ Solutions M i
 
 /-- **The defect adds outputs and removes none.**  Every output the intended
 reading accepts, the literal one accepts too. -/
-theorem solutions_subset (M : ℕ) (i : Text) :
+theorem solutions_subset (M : ℕ) (i : Text α) :
     Meyer.Book.Solutions M i ⊆ Solutions M i := by
   rintro o ⟨ho, hmin⟩
   refine ⟨ho, fun y hy => ?_⟩
@@ -127,50 +131,61 @@ theorem solutions_subset (M : ℕ) (i : Text) :
     exact List.count_pos_iff.1 (Nat.lt_of_lt_of_le (List.count_pos_iff.2 hno) (hmin y hy))
   · exact Nat.zero_le _
 
+end Literal
+
 /-! ## The witness
 
-Meyer's own example, with a third output. -/
+`T5`'s input, `c cc c` at `M = 4`, with a third output. -/
 
-/-- Three lines where two are enough. -/
-private def exOut₃ : Text := "ABC\nD\nEFG".toList
+section Witness
 
-private lemma recast_exOut₃ : Recast exIn exOut₃ :=
-  recast_trans
-    (recast_of_recast1 (recast1_dropLeading (b := [blank, blank])
-      (o := "ABC  D  EFG".toList) break_blanks))
-    (recast_trans
-      (recast_of_recast1 (recast1_replace (b := [blank, blank]) (x := "ABC".toList)
-        (y := "D  EFG".toList) break_blanks (s := newline) (Or.inr rfl)))
-      (recast_of_recast1 (recast1_replace (b := [blank, blank]) (x := "ABC\nD".toList)
-        (y := "EFG".toList) break_blanks (s := newline) (Or.inr rfl))))
+variable {α : Type*} [Lettered α]
+
+/-- `c / cc / c`: three lines where two are enough. -/
+private def tOut₃ (c : α) : Text α := [c, newline, c, c, newline, c]
+
+private lemma recast_tOut₃ (c : α) : Recast (tIn c) (tOut₃ c) :=
+  recast_trans (recast_tOut₁ c) (recast_of_recast1 (by
+    simpa [tOut₁, tOut₃] using recast1_replace (b := [blank]) (x := [c])
+      (y := [c, c, newline, c]) (singleton_mem_break (Or.inl rfl)) (s := newline) (Or.inr rfl)))
 
 /-- Under the literal `M3`, a three-line output is as good as a two-line one. -/
-private lemma goal_exOut₃ : Goal 5 exIn exOut₃ := by
-  refine ⟨⟨mem_minRecasts_of_length_nine recast_exOut₃ (by decide),
-    maxLine_le_of_tails (by decide)⟩, fun y hy => ?_⟩
-  rw [newLines_eq, newLines_eq, if_pos (by decide : newline ∈ exOut₃),
-    if_pos (newline_mem_of_mem_minRecasts hy.1 hy.2)]
+private lemma goal_tOut₃ [DecidableEq α] {c : α} (hc : ¬ IsBreak c) :
+    Goal 4 (tIn c) (tOut₃ c) := by
+  refine ⟨⟨mem_minRecasts_of_length_six hc (recast_tOut₃ c) rfl,
+    maxLine_le_four (x := [c]) (y := [c, c, newline, c]) (by simp) (by simp)⟩, fun y hy => ?_⟩
+  rw [newLines_eq, newLines_eq, if_pos (by simp [tOut₃] : newline ∈ tOut₃ c),
+    if_pos (List.count_pos_iff.1 (one_le_newLines_tIn hc hy.1 hy.2))]
 
 /-- It is not a solution of the specification Meyer describes: it has two new
-lines where `ABC␣D / EFG` has one. -/
-private lemma not_goal_exOut₃ : ¬ Meyer.Book.Goal 5 exIn exOut₃ := by
-  intro h
-  obtain ⟨-, hmin⟩ := mem_solutions_iff.1 h
-  obtain ⟨⟨h₁, h₂⟩, -⟩ := mem_solutions_iff.1 goal_exOut₁
-  have := hmin exOut₁ h₁ h₂
-  rw [show Meyer.Book.newLines exOut₃ = 2 from by decide,
-    show Meyer.Book.newLines exOut₁ = 1 from by decide] at this
+lines where `c cc / c` has one. -/
+private lemma not_goal_tOut₃ [DecidableEq α] {c : α} (hc : ¬ IsBreak c)
+    (h : (blank : α) ≠ newline) :
+    ¬ Meyer.Book.Goal 4 (tIn c) (tOut₃ c) := by
+  intro hg
+  have hcn : c ≠ newline := fun e => hc (Or.inr e)
+  obtain ⟨-, hmin⟩ := mem_solutions_iff.1 hg
+  obtain ⟨⟨h₁, h₂⟩, -⟩ := mem_solutions_iff.1 (goal_tOut₁ hc h)
+  have := hmin (tOut₁ c) h₁ h₂
+  rw [show Meyer.Book.newLines (tOut₃ c) = 2 from by simp [Meyer.Book.newLines, tOut₃, hcn],
+    show Meyer.Book.newLines (tOut₁ c) = 1 from by simp [Meyer.Book.newLines, tOut₁, hcn, h]]
+    at this
   omega
 
-/-- **The defect, on Meyer's own example.**  For the input `␣␣ABC␣␣D␣␣EFG` at
-`M = 5`, the specification as written accepts an output that puts each word on
-its own line; the specification as described does not.
+/-- **The defect.**  On any alphabet with a letter and two distinct separators,
+the specification as written accepts an output that puts each word on its own
+line; the specification as described does not.  Meyer's own example,
+`␣␣ABC␣␣D␣␣EFG` at `M = 5` with the third output `ABC / D / EFG`, is in
+`Meyer.Book.Examples`.
 
-Meyer displays two solutions for this input and asks the reader to notice that
+Meyer displays two solutions for his input and asks the reader to notice that
 there is more than one.  There are more than he thinks: the requirement that
 lines be filled has gone. -/
-theorem goal_unfilled :
-    ∃ (M : ℕ) (i o : Text), Goal M i o ∧ ¬ Meyer.Book.Goal M i o :=
-  ⟨5, exIn, exOut₃, goal_exOut₃, not_goal_exOut₃⟩
+theorem goal_unfilled [DecidableEq α] (h : (blank : α) ≠ newline) :
+    ∃ (M : ℕ) (i o : Text α), Goal M i o ∧ ¬ Meyer.Book.Goal M i o := by
+  obtain ⟨c, hc⟩ := Lettered.exists_letter (α := α)
+  exact ⟨4, tIn c, tOut₃ c, goal_tOut₃ hc, not_goal_tOut₃ hc h⟩
+
+end Witness
 
 end Meyer.Book.Bug

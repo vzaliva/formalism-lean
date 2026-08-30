@@ -1,4 +1,4 @@
-import Meyer.Common
+import Meyer.Char
 
 /-!
 # A Lean-native specification of the text-formatting problem
@@ -40,9 +40,12 @@ for theirs.
 
 ## What is and is not Meyer's
 
-`Text`, `blank`, `newline` and `IsBreak` are the vocabulary the two Meyer
-transcriptions share, and are taken from `Meyer.Common` so that the three
-specifications can be compared.  `words` is the book's definition, exercise
+`blank`, `newline` and `IsBreak` are the vocabulary the two Meyer
+transcriptions share, and are taken from `Meyer.Common` so that the
+specifications can be compared.  Meyer's are stated over an abstract alphabet;
+this one is concrete, over Lean's `Char`, which is an alphabet of both of his
+kinds.  The comparison in `Native.Comparison` therefore instantiates the book's
+specification at `Char`.  `words` is the book's definition, exercise
 9-E.6, character for character: split at the separators and discard the empty
 pieces.  Everything else is new.
 
@@ -61,6 +64,11 @@ that concrete claims are settled by `decide`.
 namespace Native
 
 open Meyer
+
+/-- The native specification is concrete: its texts are over Lean's `Char`,
+which is an alphabet of both of Meyer's kinds (`Meyer.Alphabet`,
+`Meyer.Lettered`). -/
+abbrev Text := Meyer.Text Char
 
 noncomputable section
 
@@ -108,7 +116,7 @@ structure Layout (ws : List Word) (ls : List Line) : Prop where
 
 /-- **The specification by layouts.**  `o` is the printed form of a layout of
 the words of `i` that has as few lines as any layout of them. -/
-def ByLayout : Spec := fun i o =>
+def ByLayout : Spec Char := fun i o =>
   ∃ ls, Layout M (words i) ls ∧
     (∀ ls', Layout M (words i) ls' → ls.length ≤ ls'.length) ∧ o = render ls
 
@@ -144,7 +152,7 @@ structure Acceptable.Fields (i o : Text) : Prop where
 
 /-- The acceptable outputs of `i`: the candidate relation `ByText` minimises
 over.  It has the type of a specification and is not one. -/
-abbrev Acceptable : Spec := Acceptable.Fields M
+abbrev Acceptable : Spec Char := Acceptable.Fields M
 
 /-- The conditions `N1` to `N4`: an acceptable output with fewest lines among
 the acceptable outputs. -/
@@ -153,7 +161,7 @@ structure ByText.Fields (i o : Text) : Prop extends Acceptable.Fields M i o wher
   fewestLines : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline
 
 /-- **The specification on texts.** -/
-abbrev ByText : Spec := ByText.Fields M
+abbrev ByText : Spec Char := ByText.Fields M
 
 end
 

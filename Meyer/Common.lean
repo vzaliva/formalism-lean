@@ -30,16 +30,38 @@ proved rather than asserted.
 
 namespace Meyer
 
-/-! ## Characters and texts -/
+/-! ## Alphabets and texts
+
+Neither text fixes the character set.  The paper: "the only property of `CHAR`
+that matters here is that `CHAR` contains two elements of particular interest,
+`blank` and `new_line`".  The book: `CHARACTER ≜ LETTER ∪ SEPARATOR` with
+`SEPARATOR ≜ {space, new_line}`, `LETTER ≠ ∅` and `LETTER ∩ SEPARATOR = ∅`
+(p. 172).  The two assumptions differ, and each is a typeclass here: `Alphabet`
+is the paper's, `Lettered` the book's, and every alphabet of the book's kind is
+one of the paper's.  Neither text says that `blank` and `new_line` differ, so
+neither class does; the results that need it say so.
+
+`Char` is an instance of both, in `Meyer.Char`; the transcriptions never use it.
+Equality of characters is assumed decidable, `[DecidableEq α]`, wherever a
+definition or a proof tests it.  That is a Lean-side assumption with no
+counterpart in the texts, whose mathematics is classical, and it costs no
+generality: every type has a classical instance.  It is kept separate from the
+classes so that `decide` runs on the concrete alphabet `Char`. -/
+
+/-- The paper's `CHAR`: a type with two distinguished elements, the paper's
+`blank` and `new_line`, the book's `space` and `new_line`. -/
+class Alphabet (α : Type*) where
+  /-- The paper's `blank`; the book's `space`. -/
+  blank : α
+  /-- `new_line`, in both texts. -/
+  newline : α
+
+export Alphabet (blank newline)
 
 /-- The paper's `seq [CHAR]` and the book's `TEXT`. -/
-abbrev Text := List Char
+abbrev Text (α : Type*) := List α
 
-/-- The paper's `blank`; the book's `space`. -/
-def blank : Char := ' '
-
-/-- `new_line`, in both texts. -/
-def newline : Char := '\n'
+variable {α : Type*} [Alphabet α]
 
 /-- The paper's `BREAK_CHAR ≜ {blank, new_line}`; the book's
 `SEPARATOR ≜ {space, new_line}`.
@@ -47,14 +69,19 @@ def newline : Char := '\n'
 The two texts differ over the word *break*: in the paper a break is a single
 character, in the book (`BREAK ≜ SEPARATOR⁺`) it is a non-empty sequence of
 them.  The book's sense is `Meyer.Book.Break`. -/
-def IsBreak (c : Char) : Prop := c = blank ∨ c = newline
+def IsBreak (c : α) : Prop := c = blank ∨ c = newline
 
-instance : DecidablePred IsBreak :=
+instance [DecidableEq α] : DecidablePred (IsBreak (α := α)) :=
   fun c => inferInstanceAs (Decidable (c = blank ∨ c = newline))
 
-/-- `blank` and `newline` are distinct, so a text may contain one and not the
-other. -/
-lemma blank_ne_newline : blank ≠ newline := by decide
+/-- The book's `CHARACTER`: an alphabet with at least one letter, `LETTER ≠ ∅`.
+`LETTER ∩ SEPARATOR = ∅` and `CHARACTER ≜ LETTER ∪ SEPARATOR` make `LETTER` the
+complement of `SEPARATOR`, so a letter is a character that is not a break and
+the class has nothing further to say.  It is assumed exactly where a letter is
+used: the book's `T5` and the paper's subsequence defect. -/
+class Lettered (α : Type*) extends Alphabet α where
+  /-- `LETTER ≠ ∅`. -/
+  exists_letter : ∃ c : α, ¬ IsBreak c
 
 /-! ## Specifications -/
 
@@ -63,7 +90,7 @@ lemma blank_ne_newline : blank ≠ newline := by decide
 which must ensure that a certain relation (`goal`) is satisfied between its
 argument and its result".  The paper's `goal`, the book's `S1` read as a
 relation, and both specifications in `Native` have this type. -/
-abbrev Spec := Text → Text → Prop
+abbrev Spec (α : Type*) := Text α → Text α → Prop
 
 /-! ## Extremal subsets
 

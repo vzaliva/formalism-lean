@@ -48,11 +48,20 @@ breaks in `Meyer.Book.Words`.
 ## Deviations from the book
 
 * `LETTER` is kept abstract in the book, subject to `CHARACTER ≜ LETTER ∪
-  SEPARATOR`, `LETTER ≠ ∅` and `LETTER ∩ SEPARATOR = ∅` (p. 172).  Identifying
-  `CHARACTER` with Lean's `Char` leaves exactly one reading of `LETTER` that
-  satisfies all three, the complement of `SEPARATOR`, and that is what is used
-  here.  The union equation is what makes M5 and M6 define the same function, so
-  it is realised rather than assumed.
+  SEPARATOR`, `LETTER ≠ ∅` and `LETTER ∩ SEPARATOR = ∅` (p. 172).  The union
+  and disjointness equations leave exactly one reading of `LETTER`, the
+  complement of `SEPARATOR`, and that is what `IsLetter` is.  `LETTER ≠ ∅` is
+  the one substantive assumption, the class `Meyer.Lettered`.  The book states
+  the whole of §9.5 under it; this transcription does not.  The definitions
+  and seven of the eight theorems are stated over the paper's weaker
+  `Meyer.Alphabet`, and `LETTER ≠ ∅` appears in exactly one, `T5`
+  (`Meyer.Book.goal_not_functional`), which is where it is used -- and in the
+  defect witness of `Meyer.Book.Bug`, which is `T5`'s input with a third output.  That is a
+  strengthening of the book, not a departure from it: every statement over
+  `Alphabet` specialises to `Lettered`.  The union equation is what makes M5
+  and M6 define the same function -- given, as neither box says, that `space`
+  and `new_line` are two characters; `T5` needs that too, and both take it as a
+  hypothesis.
 
 * `S1` binds `u` but states its conditions and measures in terms of `out`.  We
   read the bound variable as `out`, which is what the surrounding text (9.5.4,
@@ -74,6 +83,8 @@ breaks in `Meyer.Book.Words`.
 
 namespace Meyer.Book
 
+variable {α : Type*} [DecidableEq α] [Alphabet α]
+
 /-! ## Characters
 
 `CHARACTER ≜ LETTER ∪ SEPARATOR` with `SEPARATOR ≜ {space, new_line}`.  Note the
@@ -82,19 +93,19 @@ The paper used *break character* for the former and had no name for the
 latter. -/
 
 /-- `SEPARATOR ≜ {space, new_line}`.  This is the paper's `BREAK_CHAR`. -/
-abbrev IsSeparator (c : Char) : Prop := IsBreak c
+abbrev IsSeparator (c : α) : Prop := IsBreak c
 
 /-- `LETTER`: everything that is not a separator.  Meyer keeps the set abstract,
 subject to `CHARACTER ≜ LETTER ∪ SEPARATOR`, `LETTER ≠ ∅` and
-`LETTER ∩ SEPARATOR = ∅`.  Once `CHARACTER` is `Char`, the complement of
-`SEPARATOR` is the only set satisfying all three. -/
-def IsLetter (c : Char) : Prop := ¬ IsSeparator c
+`LETTER ∩ SEPARATOR = ∅`; the first and third make it the complement of
+`SEPARATOR`, and the second is `Meyer.Lettered`. -/
+def IsLetter (c : α) : Prop := ¬ IsSeparator c
 
-instance : DecidablePred IsLetter :=
+instance : DecidablePred (IsLetter (α := α)) :=
   fun c => inferInstanceAs (Decidable (¬ IsBreak c))
 
 /-- `BREAK ≜ SEPARATOR⁺`: a non-empty sequence of separators. -/
-def Break : Set Text :=
+def Break : Set (Text α) :=
   {b | b ≠ [] ∧ ∀ c ∈ b, IsSeparator c}
 
 /-! ## Recasting
@@ -117,21 +128,21 @@ specification works". -/
 
 /-- **`recast1`.**  The three ways in which `out` may differ from `in` by one
 step: `[L]`, `[T]`, `[R]`. -/
-def Recast1 (i o : Text) : Prop :=
+def Recast1 (i o : Text α) : Prop :=
   ∃ b ∈ Break,
     i = b ++ o ∨
     i = o ++ b ∨
-    ∃ s, IsSeparator s ∧ ∃ x y : Text, i = x ++ b ++ y ∧ o = x ++ [s] ++ y
+    ∃ s, IsSeparator s ∧ ∃ x y : Text α, i = x ++ b ++ y ∧ o = x ++ [s] ++ y
 
 /-- `recast ≜ recast1*`, the reflexive transitive closure.  Meyer: "This is where
 the power and beauty of reflexive transitive closure strike: `recast` ... gives
 us all possible variants of `in`, including those without any useless
 separators." -/
-def Recast : Text → Text → Prop :=
+def Recast : Text α → Text α → Prop :=
   Relation.ReflTransGen Recast1
 
 /-- `recast ({in})`, the image of the one-element set `{in}` under `recast`. -/
-def RecastImage (i : Text) : Set Text :=
+def RecastImage (i : Text α) : Set (Text α) :=
   {o | Recast i o}
 
 /-! ## Measures
@@ -148,13 +159,13 @@ at most one -- and `Meyer.Book.Bug` proves that the difference matters.  Meyer's
 parenthetical is a good statement of the intent: "What we really want to
 minimize is the number of *lines*, but since it is `new_lines (out) + 1` we can
 for simplicity minimize `new_lines` instead." -/
-def newLines (s : Text) : ℕ :=
+def newLines (s : Text α) : ℕ :=
   s.count newline
 
 /-- `maxword (in) ≜ max (s.count | s ∈ SUBSEQ (in) ∧ range s ⊆ LETTER)`: the
 length of the longest run of consecutive letters.  A member of `SUBSEQ` is a
 contiguous stretch (9.2.6), which is `List.IsInfix`. -/
-noncomputable def maxWord (s : Text) : ℕ :=
+noncomputable def maxWord (s : Text α) : ℕ :=
   maxRun IsLetter s
 
 /-- `maxline (in) ≜ max (s.count | s ∈ SUBSEQ (in) ∧ new_line ∉ range s)`: the
@@ -163,7 +174,7 @@ length of the longest run of consecutive characters containing no `new_line`.
 This is the paper's `max_line_length` verbatim, `Meyer.Paper.maxLineLength`; the
 two modules keep their own copy so that each stands as a transcription of its own
 source. -/
-noncomputable def maxLine (s : Text) : ℕ :=
+noncomputable def maxLine (s : Text α) : ℕ :=
   maxRun (fun c => c ≠ newline) s
 
 /-! ## Words and breaks
@@ -182,11 +193,11 @@ transformations only affect the number of breaks except by possibly removing a
 heading break, a trailing break or both" -- is about the convention used here. -/
 
 /-- `WORDS (t)`: the non-empty maximal runs of letters, in order. -/
-noncomputable def words (t : Text) : List Text :=
+noncomputable def words (t : Text α) : List (Text α) :=
   (t.splitOnP fun c => decide (IsSeparator c)).filter fun w => !w.isEmpty
 
 /-- `breaks (t)`: the non-empty maximal runs of separators, in order. -/
-noncomputable def breaks (t : Text) : List Text :=
+noncomputable def breaks (t : Text α) : List (Text α) :=
   (t.splitOnP fun c => decide (IsLetter c)).filter fun b => !b.isEmpty
 
 /-! ## The specification
@@ -196,7 +207,7 @@ Meyer's `mu` operator and the one-line specification `S1` built from it. -/
 /-- `M1`: `μ a: A | c (a) | m (a)`, "the subset of a set `A` consisting of
 elements, if any, that satisfy condition `c` and have minimal value for a
 numerical measure `m`". -/
-def Mu (A : Set Text) (c : Text → Prop) (m : Text → ℕ) : Set Text :=
+def Mu (A : Set (Text α)) (c : Text α → Prop) (m : Text α → ℕ) : Set (Text α) :=
   MinSet {a ∈ A | c a} m
 
 /-- The first stage of `S1`: the recasts of `in` of minimum length.
@@ -205,7 +216,7 @@ Meyer, in the operational reading of `S1` (p. 175): "From those, we only retain
 the ones of minimum length ... Since the transformations involved in `recast1`
 only affect breaks, these texts are also the ones with a minimum number of
 separators." -/
-def MinRecasts (i : Text) : Set Text :=
+def MinRecasts (i : Text α) : Set (Text α) :=
   Mu (RecastImage i) (fun _ => True) List.length
 
 /-- **`S1`**, the specification.
@@ -216,7 +227,7 @@ By `M2` this is a double application of `M1`: minimise length over the recasts
 of `in`, then, among those, impose `maxline ≤ M` and minimise the number of new
 lines.  The order matters, and Meyer says so: "the order matters, since
 reversing it may yield a different result". -/
-noncomputable def Solutions (M : ℕ) (i : Text) : Set Text :=
+noncomputable def Solutions (M : ℕ) (i : Text α) : Set (Text α) :=
   Mu (MinRecasts i) (fun o => maxLine o ≤ M) newLines
 
 /-! ### The English restatement of 9.5.7
@@ -234,7 +245,7 @@ version is a rendering of it rather than a competing specification. -/
 
 /-- The input/output relation the specification defines, for comparison with the
 paper's `goal`. -/
-def Goal (M : ℕ) (i o : Text) : Prop :=
+def Goal (M : ℕ) (i o : Text α) : Prop :=
   o ∈ Solutions M i
 
 end Meyer.Book
