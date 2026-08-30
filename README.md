@@ -43,7 +43,7 @@ report of what we looked for, not a systematic review.
 | Module | Contents |
 |---|---|
 | `Meyer.lean` | umbrella; `import Meyer` brings in everything |
-| `Meyer/Common.lean` | what the two treatments share: texts, separators, `MAX_SET`/`MIN_SET`, and `maxRun`, the common generalisation of the paper's `max_line_length` and the book's `maxline`, `maxword` and `M6` |
+| `Meyer/Common.lean` | what the two treatments share: texts, separators, `Spec` (a specification is a relation between input and output), `MAX_SET`/`MIN_SET`, and `maxRun`, the common generalisation of the paper's `max_line_length` and the book's `maxline`, `maxword` and `M6` |
 | `Meyer/Paper/Spec.lean` | the 1985 specification: `SINGLE_BREAKS`, `COMPACTED`, `EQUIVALENT`, `TRIMMED`, `FEWEST_LINES`, `goal`. Definitions only |
 | `Meyer/Paper/Lemmas.lean` | basic API, and Meyer's condition for `TRIMMED (b)` to be nonempty |
 | `Meyer/Paper/Retention.lean` | the step Meyer asserts without proof: compacting a text does not change its words |
@@ -57,8 +57,8 @@ report of what we looked for, not a systematic review.
 | `Meyer/Comparison.lean` | the two specifications are not the same relation |
 | `Native.lean` | umbrella for the third specification |
 | `Native/Spec.lean` | the Lean-native specification twice over: `ByLayout` and `ByText`. Definitions only |
-| `Native/Properties.lean` | decidability, feasibility, nondeterminism, and `ByLayout M i o ↔ ByText M i o` |
-| `Native/Comparison.lean` | `ByLayout M i o ↔ Meyer.Book.Goal M i o` |
+| `Native/Properties.lean` | decidability, feasibility, nondeterminism, and `ByLayout M = ByText M` |
+| `Native/Comparison.lean` | `ByLayout M = Meyer.Book.Goal M` |
 
 ## The 1985 paper
 
@@ -216,7 +216,8 @@ The difference is not only cosmetic. For the input `␣AB` with a line limit of 
 characters, the paper cannot leave the blank where it is, because the line `␣AB` is
 three characters long. It must turn the blank into a new line, so its output has an
 empty first line. The book deletes the blank. `Meyer/Comparison.lean` proves that each
-specification's output for this input is rejected by the other.
+specification's output for this input is rejected by the other, and hence that the two
+are different elements of `Spec`: `Paper.Goal 2 ≠ Book.Goal 2` (`paper_ne_book`).
 
 The same divergence bears on a question Meyer raises as `T7` and leaves open for the
 natural-language originals. For an input of separators only the book yields the empty
@@ -242,7 +243,9 @@ def words (t : Text) : List Word := (t.splitOnP (IsBreak ·)).filter (· ≠ [])
 
 A `Word` is a `Text`, a `Line` is a `List Word`, and `words` is the book's `WORDS`
 character for character. It is the only place either specification looks at a
-character.
+character. Both specifications have the type `Spec := Text → Text → Prop` of
+`Meyer/Common.lean`, a relation between input and output — which is what the 1985 paper
+says a specification is.
 
 ### By layouts
 
@@ -257,7 +260,7 @@ structure Layout (ws : List Word) (ls : List Line) : Prop where
   nonempty : [] ∉ ls
   fits     : ∀ l ∈ ls, (renderLine l).length ≤ M
 
-def ByLayout (i o : Text) : Prop :=
+def ByLayout : Spec := fun i o =>
   ∃ ls, Layout M (words i) ls ∧
     (∀ ls', Layout M (words i) ls' → ls.length ≤ ls'.length) ∧ o = render ls
 ```
@@ -285,21 +288,25 @@ character encoding, not of the problem.
 ### On texts
 
 ```lean
-structure Acceptable (i o : Text) : Prop where
+structure Acceptable.Fields (i o : Text) : Prop where
   linesFit     : o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M   -- N1
   singleBlanks : o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank     -- N2
   sameWords    : words o = words i                                           -- N3
+abbrev Acceptable : Spec := Acceptable.Fields M
 
-structure ByText (i o : Text) : Prop extends Acceptable M i o where
+structure ByText.Fields (i o : Text) : Prop extends Acceptable.Fields M i o where
   fewestLines  : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline  -- N4
+abbrev ByText : Spec := ByText.Fields M
 ```
 
 An output is an acceptable text with the fewest lines, where acceptable means: every
 line is non-empty and fits, words are separated by single blanks with none at the ends,
 and the words are the input's. (`N1` and `N2` carry the proviso `o ≠ []`, since
-`List.splitOn` reads the empty text as one empty line.) Nothing stands behind the four
-conditions — no layout, no `render` — and where `ByLayout` constructs the output with
-`List.intercalate`, `ByText` inspects it with `List.splitOn`.
+`List.splitOn` reads the empty text as one empty line.) `Acceptable` is the candidate
+relation `ByText` minimises over; it has the type of a specification and is not one.
+Nothing stands behind the four conditions — no layout, no `render` — and where
+`ByLayout` constructs the output with `List.intercalate`, `ByText` inspects it with
+`List.splitOn`.
 
 This is Naur's problem statement, in the global reading of "filled as far as
 possible", written on the output. It also has the shape both of Meyer's specifications
@@ -321,8 +328,10 @@ as a condition it would exclude nothing the three do not.
 
 ### The two are one relation
 
+Both have the type `Spec`, so "the same relation" can be said as an equality:
+
 ```lean
-theorem byLayout_iff_byText : ByLayout M i o ↔ ByText M i o
+theorem byLayout_eq_byText (M : ℕ) : ByLayout M = ByText M
 ```
 
 Each has what the other lacks. `ByLayout` is decidable and comes with an induction on
@@ -335,7 +344,7 @@ says that printing that layout gives the text back.
 The theorem also settles a question the 2022 defect raises. `N1` to `N3` are conditions
 on the printed shape of an output and none of them sees the minimisation: that is the
 blind spot the `M3` defect sat in, and the book's own `T1` to `T8` share it. `N4` closes
-it, and `byLayout_iff_byText` says it closes it completely — a relation with these four
+it, and `byLayout_eq_byText` says it closes it completely — a relation with these four
 conditions is *the* relation, so the question "would the conditions have caught the
 defect?" has a theorem for an answer rather than a case-by-case argument. The book's
 `T1` to `T8` admit no such theorem, and cannot: the `M3`-defective reading of `S1` in
@@ -348,7 +357,7 @@ satisfies all eight.
 The main result of `Native/Comparison.lean` is that the new specification is the book's:
 
 ```lean
-theorem byLayout_iff_book (M : ℕ) (i o : Text) : ByLayout M i o ↔ Meyer.Book.Goal M i o
+theorem byLayout_eq_book (M : ℕ) : ByLayout M = Meyer.Book.Goal M
 ```
 
 so everything the chapter proves about `S1` holds of `ByLayout` and `ByText`, and, since
@@ -378,7 +387,7 @@ lake exe cache get   # mathlib binaries
 lake build
 ```
 
-A clean build produces no warnings and no `sorry`s. To check what the thirty
+A clean build produces no warnings and no `sorry`s. To check what the thirty-one
 theorems depend on:
 
 ```sh

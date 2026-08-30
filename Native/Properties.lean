@@ -14,7 +14,7 @@ Meyer's specifications.  `Native.Comparison` does the comparing.
 * **Feasibility**, `feasibility`: an input has an output exactly when each of
   its words fits on a line.
 * **Nondeterminism**, `byLayout_not_functional`, on Meyer's own example.
-* **The two formulations agree**, `byLayout_iff_byText`: `ByLayout`, by way of
+* **The two formulations agree**, `byLayout_eq_byText`: `ByLayout`, by way of
   layouts, and `ByText`, on the output text, are the same relation.  An
   acceptable text is parsed back into a layout by `List.splitOn`, and
   `List.intercalate_splitOn` says printing that layout gives the text back.
@@ -631,7 +631,7 @@ private lemma Layout.acceptable {M : ℕ} {i : Text} {ls : List Line}
 
 /-- **An acceptable text is a printed layout**: what `List.splitOn` reads off a
 non-empty acceptable text is a layout of the words of the input. -/
-private lemma Acceptable.layout_parse {M : ℕ} {i o : Text} (h : Acceptable M i o)
+private lemma Acceptable.Fields.layout_parse {M : ℕ} {i o : Text} (h : Acceptable M i o)
     (ho : o ≠ []) : Layout M (words i) (parse o) := by
   have hw : ∀ l ∈ parse o, ∀ w ∈ l, w ≠ [] ∧ ∀ c ∈ w, ¬ IsBreak c := by
     intro l hl w hw
@@ -691,20 +691,25 @@ private lemma ByText.byLayout {M : ℕ} {i o : Text} (h : ByText M i o) : ByLayo
     · have hc' := count_newline_render_of_layout hl'
       omega
 
-/-- **The two formulations are the same relation.**  An output of `ByLayout` is an
-acceptable text with fewest lines, and conversely.  The book's `T1` to `T8`
-admit no such theorem: the `M3`-defective reading of `S1` is provably a
-different relation (`Meyer.Book.Bug.goal_unfilled`) and, by the argument in
-`README.md`, has all eight. -/
-theorem byLayout_iff_byText {M : ℕ} {i o : Text} : ByLayout M i o ↔ ByText M i o :=
+/-- Pointwise: an output of `ByLayout` is an acceptable text with fewest lines,
+and conversely. -/
+private lemma byLayout_iff_byText {M : ℕ} {i o : Text} : ByLayout M i o ↔ ByText M i o :=
   ⟨ByLayout.byText, ByText.byLayout⟩
+
+/-- **The two specifications are one relation.**  `ByLayout M` and `ByText M` are
+equal as relations between input and output.  The book's `T1` to `T8` admit no
+such theorem: the `M3`-defective reading of `S1` is provably a different
+relation (`Meyer.Book.Bug.goal_unfilled`) and, by the argument in `README.md`,
+has all eight. -/
+theorem byLayout_eq_byText (M : ℕ) : ByLayout M = ByText M :=
+  funext fun _ => funext fun _ => propext byLayout_iff_byText
 
 /-- **`ByText` has the shape of Meyer's specifications**: it is `MIN_SET` of the
 acceptable texts under the number of new lines, as the paper's `goal` is
 `FEWEST_LINES (TRANSF (i))`, that is `MIN_SET (TRANSF (i), number_of_new_lines)`. -/
 theorem byText_iff_minSet {M : ℕ} {i o : Text} :
     ByText M i o ↔ o ∈ MinSet {o' | Acceptable M i o'} (List.count newline) :=
-  ⟨fun h => ⟨h.toAcceptable, fun _ h' => h.fewestLines _ h'⟩,
+  ⟨fun h => ⟨h.toFields, fun _ h' => h.fewestLines _ h'⟩,
     fun ⟨h, hmin⟩ => ⟨h, fun _ h' => hmin _ h'⟩⟩
 
 /-! ## Decidability of the text formulation
@@ -735,7 +740,7 @@ example : ByText 5 "  ABC  D  EFG".toList "ABC D\nEFG".toList ∧
 /-- **The length of an output**: exactly the letters of the input plus one
 separator per gap between words.  This is the book's `T1` sharpened to an
 equation.  It is not a field of `Acceptable` because it follows from `N1` to
-`N3` -- an acceptable text is a printed layout, `Acceptable.layout_parse`, and
+`N3` -- an acceptable text is a printed layout, `Acceptable.Fields.layout_parse`, and
 `length_render_cut` measures one -- and so detects nothing they do not. -/
 theorem length_of_byLayout {M : ℕ} {i o : Text} (h : ByLayout M i o) (hw : words i ≠ []) :
     o.length + 1 = ((words i).map List.length).sum + (words i).length := by

@@ -149,4 +149,9 @@ theorem specifications_differ :
   ⟨2, cIn, cPaper, cBook,
     paper_goal_cPaper, not_book_goal_cPaper, book_goal_cBook, not_paper_goal_cBook⟩
 
+/-- The same, as an inequality of relations: at line limit two, the paper's
+`goal` and the book's `S1` are different elements of `Spec`. -/
+theorem paper_ne_book : ∃ M : ℕ, Paper.Goal M ≠ Book.Goal M :=
+  ⟨2, fun h => not_book_goal_cPaper (h ▸ paper_goal_cPaper)⟩
+
 end Meyer.Comparison

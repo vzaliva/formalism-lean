@@ -4,7 +4,7 @@ import Meyer.Book.Facts
 /-!
 # The Lean-native specification against the book's
 
-`Native.ByLayout` is the same relation as the book's `S1`, `byLayout_iff_book`.  So
+`Native.ByLayout` is the same relation as the book's `S1`, `byLayout_eq_book`.  So
 everything the chapter proves about `S1` holds of `ByLayout` as well -- `T1` is
 transferred explicitly as `length_le_of_byLayout`, the inequality
 `Native.length_of_byLayout` sharpens -- and, since `Meyer.Comparison` proves the
@@ -122,15 +122,13 @@ private lemma maxLine_render_le_iff {M : ℕ} : ∀ {ls : List Line},
 
 /-! ## The equivalence -/
 
-/-- **The book's specification is this one.**  `ByLayout M i o ↔ Meyer.Book.Goal M i o`.
-
-Reading the book's `S1` through the lemmas above: its shortest recasts are the
+/-- Pointwise.  Reading the book's `S1` through the lemmas above: its shortest recasts are the
 printed cuts of the words of the input; `maxline ≤ M` on a printed cut says that
 every line fits; and `new_lines` counts the lines less one.  So minimising
 `new_lines` over the shortest recasts with `maxline ≤ M` is minimising the
 number of lines over the layouts, and `S1` and `ByLayout` accept the same
 outputs. -/
-theorem byLayout_iff_book (M : ℕ) (i o : Text) : ByLayout M i o ↔ Book.Goal M i o := by
+private lemma byLayout_iff_book (M : ℕ) (i o : Text) : ByLayout M i o ↔ Book.Goal M i o := by
   have hnl : ∀ ls : List Line, ls.flatten = words i → ∀ l ∈ ls, newline ∉ renderLine l :=
     fun ls hf l hl => newline_not_mem_renderLine fun w hw => (words_of_cut hf l hl w hw).2
   rw [Book.Goal, Book.mem_solutions_iff]
@@ -159,6 +157,13 @@ theorem byLayout_iff_book (M : ℕ) (i o : Text) : ByLayout M i o ↔ Book.Goal 
       · have h₁ := newLines_render (List.cons_ne_nil l ls) (hnl _ hf)
         have h₂ := newLines_render (List.cons_ne_nil l' ls') (hnl _ hl'.flatten)
         omega
+
+/-- **The book's specification is this one.**  `ByLayout M` and `Meyer.Book.Goal M`
+are equal as relations between input and output; with `Native.byLayout_eq_byText`,
+so are `ByText M` and `S1`.  Everything the chapter proves about `S1` therefore
+holds of both. -/
+theorem byLayout_eq_book (M : ℕ) : ByLayout M = Book.Goal M :=
+  funext fun i => funext fun o => propext (byLayout_iff_book M i o)
 
 /-- The book's `T1` for `ByLayout`, the inequality `Native.length_of_byLayout` sharpens: an output
 is no

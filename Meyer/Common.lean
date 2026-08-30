@@ -56,6 +56,15 @@ instance : DecidablePred IsBreak :=
 other. -/
 lemma blank_ne_newline : blank ≠ newline := by decide
 
+/-! ## Specifications -/
+
+/-- A specification: a relation between input and output.  The paper (1985):
+"a program may be viewed as the implementation of a certain function (`sol`)
+which must ensure that a certain relation (`goal`) is satisfied between its
+argument and its result".  The paper's `goal`, the book's `S1` read as a
+relation, and both specifications in `Native` have this type. -/
+abbrev Spec := Text → Text → Prop
+
 /-! ## Extremal subsets
 
 The paper's `MAX_SET (X, f)` and `MIN_SET (X, f)`.  Meyer stresses that these

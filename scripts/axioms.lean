@@ -39,11 +39,12 @@ it.  Anything else means an axiom has crept in.
 #print axioms Meyer.Book.words_eq_of_recast
 #print axioms Meyer.Book.length_breaks_ge
 #print axioms Meyer.Comparison.specifications_differ
+#print axioms Meyer.Comparison.paper_ne_book
 #print axioms Native.feasibility
 #print axioms Native.byLayout_not_functional
 #print axioms Native.byLayout_of_forall_isBreak
-#print axioms Native.byLayout_iff_book
+#print axioms Native.byLayout_eq_book
 #print axioms Native.length_le_of_byLayout
 #print axioms Native.length_of_byLayout
-#print axioms Native.byLayout_iff_byText
+#print axioms Native.byLayout_eq_byText
 #print axioms Native.byText_iff_minSet
