@@ -14,15 +14,14 @@ Meyer's specifications.  `Native.Comparison` does the comparing.
 * **Feasibility**, `feasibility`: an input has an output exactly when each of
   its words fits on a line.
 * **Nondeterminism**, `goal_not_functional`, on Meyer's own example.
-* **`N1` to `N4`**, the properties `Native.Spec` states of an output:
-  `linesFit_of_goal`, `singleBlanks_of_goal`, `sameWords_of_goal`,
-  `fewestLines_of_goal`; and `length_of_goal`, the book's `T1` sharpened to
-  an equation, which is a consequence of `N1` to `N3` and so not a property in
-  its own right.
-* **Completeness**, `goal_iff_properties`: `N1` to `N4` together are `Goal`.
-  A text with those four properties is parsed back into a layout by
-  `List.splitOn`, and `List.intercalate_splitOn` says printing that layout gives
-  the text back.
+* **The two formulations agree**, `goal_iff_optimal`: `Goal`, by way of
+  layouts, and `Optimal`, on the output text, are the same relation.  An
+  acceptable text is parsed back into a layout by `List.splitOn`, and
+  `List.intercalate_splitOn` says printing that layout gives the text back.
+  `optimal_iff_minSet` puts `Optimal` in the shape of Meyer's specifications,
+  and decidability passes from `Goal` to `Optimal` through the equivalence.
+* **The length of an output**, `length_of_goal`: the book's `T1` sharpened to
+  an equation, a consequence of `N1` to `N3`.
 
 The machinery is a handful of equations for `render` on a *cut* of a list of
 words, a list of lines `ls` with `[] ∉ ls` and `ls.flatten = ws`, and their
@@ -589,16 +588,16 @@ theorem goal_of_forall_isBreak {M : ℕ} {i : Text} (h : ∀ c ∈ i, IsBreak c)
   · rintro rfl
     exact ⟨[], ⟨rfl, by simp, by simp⟩, fun _ _ => Nat.zero_le _, rfl⟩
 
-/-! ## `N1` to `N4`, and completeness
+/-! ## The two formulations agree
 
 Each output of `Goal` is `render ls` for a layout `ls` of the words of the
 input, and `N1` to `N3` are read off that.  `N4` and the converse need the other
-direction: a text with `N1` to `N3` is `render (parse o)` for a layout
-`parse o`, and its new lines count its lines. -/
+direction: an acceptable text is `render (parse o)` for a layout `parse o`, and
+its new lines count its lines. -/
 
 /-- The lines of a printed layout are non-empty and fit. -/
 private lemma linesFit_render {M : ℕ} {i : Text} {ls : List Line} (hl : Layout M (words i) ls) :
-    LinesFit M (render ls) := by
+    (render ls) ≠ [] → ∀ l ∈ (render ls).splitOn newline, l ≠ [] ∧ l.length ≤ M := by
   intro ho l hl'
   have hw := words_of_cut hl.flatten
   have hne : ls ≠ [] := by rintro rfl; exact ho rfl
@@ -611,7 +610,8 @@ private lemma linesFit_render {M : ℕ} {i : Text} {ls : List Line} (hl : Layout
 /-- The lines of a printed layout have one blank between words and none at the
 ends. -/
 private lemma singleBlanks_render {M : ℕ} {i : Text} {ls : List Line}
-    (hl : Layout M (words i) ls) : SingleBlanks (render ls) := by
+    (hl : Layout M (words i) ls) :
+    (render ls) ≠ [] → ∀ l ∈ (render ls).splitOn newline, [] ∉ l.splitOn blank := by
   intro ho l hl'
   have hw := words_of_cut hl.flatten
   have hne : ls ≠ [] := by rintro rfl; exact ho rfl
@@ -622,33 +622,34 @@ private lemma singleBlanks_render {M : ℕ} {i : Text} {ls : List Line}
     fun w hw' hb => (hw l₀ hl₀ w hw').2 blank hb (Or.inl rfl)]
   exact fun h => (hw l₀ hl₀ [] h).1 rfl
 
-/-- A printed layout of the words of `i` has the words of `i`. -/
-private lemma sameWords_render {M : ℕ} {i : Text} {ls : List Line}
-    (hl : Layout M (words i) ls) : SameWords i (render ls) :=
-  (words_render (words_of_cut hl.flatten)).trans hl.flatten
+/-- **A printed layout is acceptable**: `N1` to `N3` hold of `render ls` for
+every layout `ls` of the words of `i`, minimal or not. -/
+private lemma Layout.acceptable {M : ℕ} {i : Text} {ls : List Line}
+    (hl : Layout M (words i) ls) : Acceptable M i (render ls) :=
+  ⟨linesFit_render hl, singleBlanks_render hl,
+    (words_render (words_of_cut hl.flatten)).trans hl.flatten⟩
 
-/-- **A well-formed text is a printed layout.**  With `N1` to `N3`, what
-`List.splitOn` reads off a non-empty text is a layout of the words of the
-input. -/
-private lemma layout_parse {M : ℕ} {i o : Text} (h₁ : LinesFit M o) (h₂ : SingleBlanks o)
-    (h₃ : SameWords i o) (ho : o ≠ []) : Layout M (words i) (parse o) := by
+/-- **An acceptable text is a printed layout**: what `List.splitOn` reads off a
+non-empty acceptable text is a layout of the words of the input. -/
+private lemma Acceptable.layout_parse {M : ℕ} {i o : Text} (h : Acceptable M i o)
+    (ho : o ≠ []) : Layout M (words i) (parse o) := by
   have hw : ∀ l ∈ parse o, ∀ w ∈ l, w ≠ [] ∧ ∀ c ∈ w, ¬ IsBreak c := by
     intro l hl w hw
     obtain ⟨line, hline, rfl⟩ := List.mem_map.1 hl
-    refine ⟨fun h => h₂ ho line hline (h ▸ hw), fun c hc hb => ?_⟩
+    refine ⟨fun h' => h.singleBlanks ho line hline (h' ▸ hw), fun c hc hb => ?_⟩
     rcases hb with rfl | rfl
     · exact not_mem_of_mem_splitOn hw hc
     · have := (sublist_renderLine hw).subset hc
       rw [renderLine_splitOn] at this
       exact not_mem_of_mem_splitOn hline this
   refine ⟨?_, ?_, ?_⟩
-  · rw [← words_render hw, render_parse]; exact h₃
+  · rw [← words_render hw, render_parse]; exact h.sameWords
   · simp only [parse, List.mem_map, not_exists, not_and]
     exact fun line _ h => List.splitOn_ne_nil blank line h
   · intro l hl
     obtain ⟨line, hline, rfl⟩ := List.mem_map.1 hl
     rw [renderLine_splitOn]
-    exact (h₁ ho line hline).2
+    exact (h.linesFit ho line hline).2
 
 /-- The new lines of a printed layout of the words of `i` count its lines. -/
 private lemma count_newline_render_of_layout {M : ℕ} {i : Text} {l : Line} {ls : List Line}
@@ -656,67 +657,31 @@ private lemma count_newline_render_of_layout {M : ℕ} {i : Text} {l : Line} {ls
   count_newline_render (List.cons_ne_nil l ls) fun l' hl' =>
     newline_not_mem_renderLine fun w hw => (words_of_cut hl.flatten l' hl' w hw).2
 
-/-- **`N1`**: the lines of an output are non-empty and no wider than `M`. -/
-theorem linesFit_of_goal {M : ℕ} {i o : Text} (h : Goal M i o) : LinesFit M o := by
-  obtain ⟨ls, hl, -, rfl⟩ := h
-  exact linesFit_render hl
-
-/-- **`N2`**: one blank between consecutive words on a line, none at its ends. -/
-theorem singleBlanks_of_goal {M : ℕ} {i o : Text} (h : Goal M i o) : SingleBlanks o := by
-  obtain ⟨ls, hl, -, rfl⟩ := h
-  exact singleBlanks_render hl
-
-/-- **`N3`**: an output has exactly the words of its input. -/
-theorem sameWords_of_goal {M : ℕ} {i o : Text} (h : Goal M i o) : SameWords i o := by
-  obtain ⟨ls, hl, -, rfl⟩ := h
-  exact sameWords_render hl
-
-/-- **The length of an output**: exactly the letters of the input plus one
-separator per gap between words.  This is the book's `T1` sharpened to an
-equation.  It is not listed among the properties in `Native.Spec` because it
-follows from `N1` to `N3` -- a well-formed text is a printed layout,
-`layout_parse`, and `length_render_cut` measures one -- and so detects nothing
-they do not. -/
-theorem length_of_goal {M : ℕ} {i o : Text} (h : Goal M i o) (hw : words i ≠ []) :
-    o.length + 1 = ((words i).map List.length).sum + (words i).length := by
-  obtain ⟨ls, hl, -, rfl⟩ := h
-  rw [← List.length_flatten]
-  exact length_render_cut hw hl.nonempty hl.flatten
-
-/-- **`N4`**: no well-formed text has fewer lines than an output. -/
-theorem fewestLines_of_goal {M : ℕ} {i o : Text} (h : Goal M i o) : FewestLines M i o := by
+/-- An output is optimal: acceptable, and with no more lines than any
+acceptable text. -/
+private lemma Goal.optimal {M : ℕ} {i o : Text} (h : Goal M i o) : Optimal M i o := by
   obtain ⟨ls, hl, hmin, rfl⟩ := h
-  intro o' h₁ h₂ h₃
+  refine ⟨hl.acceptable, fun o' h' => ?_⟩
   rcases eq_or_ne o' [] with rfl | ho'
-  · have hw : words i = [] := by rw [← h₃]; exact words_nil
+  · have hw : words i = [] := by rw [← h'.sameWords]; exact words_nil
     simp [eq_nil_of_cut hl.nonempty (hl.flatten.trans hw)]
-  · have hlen := hmin (parse o') (layout_parse h₁ h₂ h₃ ho')
-    have h' := length_splitOn_newline o'
+  · have hlen := hmin (parse o') (h'.layout_parse ho')
+    have h'' := length_splitOn_newline o'
     have hp : (parse o').length = (o'.splitOn newline).length := List.length_map ..
     rcases ls with _ | ⟨l, ls⟩
     · simp
     · have hc := count_newline_render_of_layout hl
       omega
 
-/-- **The properties are the specification.**  `N1` to `N4` together
-characterise `Goal`: an output is a well-formed text with the words of the
-input and no more lines than any other such text.  The book's `T1` to `T8`
-admit no such theorem: the
-`M3`-defective reading of `S1` is provably a different relation
-(`Meyer.Book.Bug.goal_unfilled`) and, by the argument in `README.md`, has all
-eight. -/
-theorem goal_iff_properties {M : ℕ} {i o : Text} :
-    Goal M i o ↔ LinesFit M o ∧ SingleBlanks o ∧ SameWords i o ∧ FewestLines M i o := by
-  refine ⟨fun h => ⟨linesFit_of_goal h, singleBlanks_of_goal h, sameWords_of_goal h,
-    fewestLines_of_goal h⟩, ?_⟩
-  rintro ⟨h₁, h₂, h₃, h₅⟩
+/-- An optimal text is an output: the layout `List.splitOn` reads off it has
+no more lines than any layout. -/
+private lemma Optimal.goal {M : ℕ} {i o : Text} (h : Optimal M i o) : Goal M i o := by
   rcases eq_or_ne o [] with rfl | ho
-  · have hw : words i = [] := by rw [← h₃]; exact words_nil
+  · have hw : words i = [] := by rw [← h.sameWords]; exact words_nil
     exact ⟨[], ⟨by rw [hw]; rfl, by simp, by simp⟩, fun _ _ => Nat.zero_le _, rfl⟩
-  · have hp := layout_parse h₁ h₂ h₃ ho
+  · have hp := h.layout_parse ho
     refine ⟨parse o, hp, fun ls' hl' => ?_, (render_parse o).symm⟩
-    have hc := h₅ (render ls') (linesFit_render hl') (singleBlanks_render hl')
-      (sameWords_render hl')
+    have hc := h.fewestLines (render ls') hl'.acceptable
     have h' := length_splitOn_newline o
     have hlen : (parse o).length = (o.splitOn newline).length := List.length_map ..
     rcases ls' with _ | ⟨l, ls'⟩
@@ -725,6 +690,58 @@ theorem goal_iff_properties {M : ℕ} {i o : Text} :
       simp [parse, List.splitOn_ne_nil] at this
     · have hc' := count_newline_render_of_layout hl'
       omega
+
+/-- **The two formulations are the same relation.**  An output of `Goal` is an
+acceptable text with fewest lines, and conversely.  The book's `T1` to `T8`
+admit no such theorem: the `M3`-defective reading of `S1` is provably a
+different relation (`Meyer.Book.Bug.goal_unfilled`) and, by the argument in
+`README.md`, has all eight. -/
+theorem goal_iff_optimal {M : ℕ} {i o : Text} : Goal M i o ↔ Optimal M i o :=
+  ⟨Goal.optimal, Optimal.goal⟩
+
+/-- **`Optimal` has the shape of Meyer's specifications**: it is `MIN_SET` of the
+acceptable texts under the number of new lines, as the paper's `goal` is
+`FEWEST_LINES (TRANSF (i))`, that is `MIN_SET (TRANSF (i), number_of_new_lines)`. -/
+theorem optimal_iff_minSet {M : ℕ} {i o : Text} :
+    Optimal M i o ↔ o ∈ MinSet {o' | Acceptable M i o'} (List.count newline) :=
+  ⟨fun h => ⟨h.toAcceptable, fun _ h' => h.fewestLines _ h'⟩,
+    fun ⟨h, hmin⟩ => ⟨h, fun _ h' => hmin _ h'⟩⟩
+
+/-! ## Decidability of the text formulation
+
+`Acceptable` is a bounded condition and decidable outright.  `Optimal`
+quantifies over all texts and is not; it becomes decidable through
+`goal_iff_optimal`, which is the layout formulation doing work for the text
+one. -/
+
+/-- Acceptability is decidable: each of the three conditions is bounded. -/
+instance (M : ℕ) (i o : Text) : Decidable (Acceptable M i o) :=
+  decidable_of_iff ((o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M) ∧
+      (o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank) ∧ words o = words i)
+    ⟨fun ⟨h₁, h₂, h₃⟩ => ⟨h₁, h₂, h₃⟩,
+      fun ⟨h₁, h₂, h₃⟩ => ⟨h₁, h₂, h₃⟩⟩
+
+/-- Optimality is decidable, by way of the layouts. -/
+instance (M : ℕ) (i o : Text) : Decidable (Optimal M i o) :=
+  decidable_of_iff _ goal_iff_optimal
+
+/-- Meyer's example, settled on the text formulation. -/
+example : Optimal 5 "  ABC  D  EFG".toList "ABC D\nEFG".toList ∧
+    ¬ Optimal 5 "  ABC  D  EFG".toList "ABC\nD\nEFG".toList := by
+  decide
+
+/-! ## The length of an output -/
+
+/-- **The length of an output**: exactly the letters of the input plus one
+separator per gap between words.  This is the book's `T1` sharpened to an
+equation.  It is not a field of `Acceptable` because it follows from `N1` to
+`N3` -- an acceptable text is a printed layout, `Acceptable.layout_parse`, and
+`length_render_cut` measures one -- and so detects nothing they do not. -/
+theorem length_of_goal {M : ℕ} {i o : Text} (h : Goal M i o) (hw : words i ≠ []) :
+    o.length + 1 = ((words i).map List.length).sum + (words i).length := by
+  obtain ⟨ls, hl, -, rfl⟩ := h
+  rw [← List.length_flatten]
+  exact length_render_cut hw hl.nonempty hl.flatten
 
 end
 

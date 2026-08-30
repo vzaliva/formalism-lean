@@ -55,8 +55,8 @@ report of what we looked for, not a systematic review.
 | `Meyer/Book/Bug.lean` | a defect in the book, proved |
 | `Meyer/Comparison.lean` | the two specifications are not the same relation |
 | `Native.lean` | umbrella for the third specification |
-| `Native/Spec.lean` | the Lean-native specification: `words`, `render`, `Layout`, `Goal`; and the properties `N1` to `N4` expected of its outputs. Definitions only |
-| `Native/Properties.lean` | decidability, feasibility, nondeterminism, `N1` to `N4` proved, and proved to characterise `Goal` |
+| `Native/Spec.lean` | the Lean-native specification twice over: `Goal`, by way of layouts, and `Optimal`, on the output text. Definitions only |
+| `Native/Properties.lean` | decidability, feasibility, nondeterminism, and `Goal M i o ↔ Optimal M i o` |
 | `Native/Comparison.lean` | `Goal M i o ↔ Meyer.Book.Goal M i o` |
 
 ## The 1985 paper
@@ -269,45 +269,59 @@ counterparts (`Native.feasibility` is `T8` and the paper's domain theorem, on th
 directly). `T1`, `T3` and `T4` have no statement at all: they are properties of the
 character encoding, not of the problem.
 
-As the book states `T1` to `T8` of `S1`, `Native/Spec.lean` states four properties an
-output of `Goal` is expected to have, each read off the output with `List.splitOn` and
-`words` and none of them mentioning how the output was arrived at:
+### The same specification, on texts
 
-| | property | statement, for an output `o` of `i` |
-|---|---|---|
-| `N1` | every line is non-empty and fits | `∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M` |
-| `N2` | one blank between words, none at the ends | `∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank` |
-| `N3` | the words are the input's | `words o = words i` |
-| `N4` | fewest lines | no `o'` with `N1`, `N2`, `N3` has `o'.count newline < o.count newline` |
+As the book states `T1` to `T8` of `S1`, `Native/Spec.lean` states four properties an
+output is expected to have, each read off the output with `List.splitOn` and `words` and
+none of them mentioning how the output was arrived at. They are bundled into two
+`Prop`-structures, and the second is a specification in its own right:
+
+```lean
+structure Acceptable (M : ℕ) (i o : Text) : Prop where
+  linesFit     : o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M   -- N1
+  singleBlanks : o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank     -- N2
+  sameWords    : words o = words i                                           -- N3
+
+structure Optimal (M : ℕ) (i o : Text) : Prop extends Acceptable M i o where
+  fewestLines  : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline  -- N4
+```
 
 (`N1` and `N2` carry the proviso `o ≠ []`, since `List.splitOn` reads the empty text as
-one empty line.) `N1` and `N2` are the book's `T6` and more, and `N3` is its `T3` about a
-solution rather than a recast. All four are proved of `Goal` in `Native/Properties.lean`.
-The book's `T1`, on the length of the output, has no entry: `Native.length_of_goal`
-states it in its sharpest form, `o.length + 1 = ((words i).map length).sum +
-(words i).length`, but that is a consequence of `N1` to `N3` (a well-formed text is a
-printed layout, and a printed layout has that length), so as a property it would detect
-nothing the three do not.
+one empty line.) `Optimal` is Naur's problem statement, in the global reading of "filled
+as far as possible", written on the output: an acceptable text with the fewest lines. It
+has the shape both of Meyer's specifications have, a minimisation over a set of
+candidates — `Optimal M i` is `MIN_SET` of the acceptable texts under the number of new
+lines (`Native.optimal_iff_minSet`), as the 1985 `goal` is `MIN_SET` of `TRANSF (i)` —
+but the candidate set is described by three checks on the text rather than constructed.
+
+The two formulations are the same relation:
+
+```lean
+theorem goal_iff_optimal : Goal M i o ↔ Optimal M i o
+```
+
+Each has what the other lacks. `Goal` is decidable and comes with an induction on
+layouts; `Optimal` is readable and quantifies over all texts, so it is not decidable on
+its face — it becomes so through the equivalence, which is the layout formulation doing
+work for the text one. The `←` direction is where Lean's library does the work:
+`List.splitOn` reads an acceptable text back into a layout, and `List.intercalate_splitOn`
+says that printing that layout gives the text back.
+
+`N1` and `N2` are the book's `T6` and more, and `N3` is its `T3` about a solution rather
+than a recast. The book's `T1`, on the length of the output, is not a field:
+`Native.length_of_goal` states it in its sharpest form, `o.length + 1 =
+((words i).map length).sum + (words i).length`, but that is a consequence of `N1` to `N3`
+(an acceptable text is a printed layout, and a printed layout has that length), so as a
+property it would detect nothing the three do not.
 
 `N1` to `N3` are properties of the printed shape of an output, and none of them sees the
 minimisation: that is the blind spot the 2022 `M3` defect sat in, and Meyer's own list
-shares it. `N4` is what closes it, and it closes it completely:
-
-```lean
-theorem goal_iff_properties :
-    Goal M i o ↔ LinesFit M o ∧ SingleBlanks o ∧ SameWords i o ∧ FewestLines M i o
-```
-
-The property list characterises the relation: an output is a well-formed text with the
-words of the input and no more lines than any other such text, and nothing else is. So
-the question "would the properties have caught the defect?" has a theorem for an answer
+shares it. `N4` closes it, and `goal_iff_optimal` says it closes it completely: the
+question "would the properties have caught the defect?" has a theorem for an answer
 rather than a case-by-case argument. `T1` to `T8` have no such theorem, and cannot: the
 `M3`-defective reading of `S1` in `Meyer/Book/Bug.lean` is provably a different relation
 and, by the argument above (mechanised for the inclusion and the witness, argued for the
-eight properties), satisfies all eight. The `←` direction is where Lean's library does
-the work:
-`List.splitOn` reads a well-formed text back into a layout, and `List.intercalate_splitOn`
-says that printing that layout gives the text back.
+eight properties), satisfies all eight.
 
 The main result of `Native/Comparison.lean` is that the new specification is the book's:
 
@@ -342,7 +356,7 @@ lake exe cache get   # mathlib binaries
 lake build
 ```
 
-A clean build produces no warnings and no `sorry`s. To check what the thirty-three
+A clean build produces no warnings and no `sorry`s. To check what the thirty
 theorems depend on:
 
 ```sh

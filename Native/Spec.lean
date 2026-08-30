@@ -29,12 +29,11 @@ Nothing here is an implementation.  `Layout` is a property, `Goal` is a relation
 and the relation is not a function: `Native.Properties` shows an input with two
 outputs, as both of Meyer's texts do for theirs.
 
-The module has two parts.  The first is the specification.  The second states,
-as definitions, the properties `N1` to `N4` an output of the specification is
-expected to have, in the way the book states `T1` to `T8` of `S1`; they are
-read off the output with `List.splitOn` and `words`, and say nothing about how
-the output was arrived at.  `Native.Properties` proves that `Goal` has them,
-and that together they characterise it.
+The module has two parts.  The first is the specification, `Goal`, by way of
+layouts.  The second is the same specification again, `Optimal`, on the output
+text alone: the properties `N1` to `N4` an output is expected to have, in the
+way the book states `T1` to `T8` of `S1`, bundled into a structure that is
+itself a specification.  `Native.Properties` proves the two the same relation.
 
 ## What is and is not Meyer's
 
@@ -96,38 +95,42 @@ def Goal (M : ℕ) (i o : Text) : Prop :=
   ∃ ls, Layout M (words i) ls ∧
     (∀ ls', Layout M (words i) ls' → ls.length ≤ ls'.length) ∧ o = render ls
 
-/-! ## Properties
+/-! ## The specification again, on texts
 
-What an output should look like, stated on the output alone.  Lines are read
-back with `List.splitOn`, which reads the empty text as one empty line; hence the
-proviso `o ≠ []` where a property is about the lines.  `N1` and `N2` are the
-book's `T6` and more; `N3` is its `T3`, about a solution rather than a recast.
-These three are properties of the printed shape of the output and say nothing
-about the minimisation.  `N4` does: no text that is well formed in the sense of
-`N1` to `N3` has fewer lines.  The list is complete -- `Native.goal_iff_properties`
-proves that the four together characterise `Goal` -- which is what the book's
-`T1` to `T8` are not.  The book's `T1`, on the length of the output, has no
-entry here because it is a consequence of `N1` to `N3`; `Native.length_of_goal`
-states it in its sharpest form. -/
+`Goal` says what an output is by way of a layout, a list of lines of words.
+The same problem can be specified on the output text alone, with nothing behind
+it.  An output is *acceptable* if its lines are non-empty and fit, its words are
+separated by single blanks, and they are the words of the input; it is *optimal*
+if no acceptable text has fewer lines.  The fields are the properties `N1` to
+`N4`, each read off the output with `List.splitOn` and `words`; `List.splitOn`
+reads the empty text as one empty line, hence the proviso `o ≠ []` in `N1` and
+`N2`.
 
-/-- `N1`: every line of the output is non-empty and no wider than `M`. -/
-def LinesFit (M : ℕ) (o : Text) : Prop :=
-  o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M
+The two formulations are the same relation, `Native.goal_iff_optimal`, and
+each has what the other lacks.  `Goal` is decidable and comes with an induction
+on layouts.  `Optimal` is the problem statement as Naur posed it, read off the
+output, and has the shape Meyer's specifications have -- a minimisation over a
+set of candidates: it is `MIN_SET` of `Acceptable` under the number of new
+lines, `Native.optimal_iff_minSet`, as the 1985 `goal` is `MIN_SET` of
+`TRANSF (i)`.  The book's `T1` to `T8` have no counterpart to
+`goal_iff_optimal`; that is the point of stating the properties as a
+specification. -/
 
-/-- `N2`: on every line, one blank between consecutive words and none at either
-end -- splitting a line at its blanks leaves no empty piece. -/
-def SingleBlanks (o : Text) : Prop :=
-  o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank
+/-- `N1` to `N3`: what any acceptable output of `i` looks like. -/
+structure Acceptable (M : ℕ) (i o : Text) : Prop where
+  /-- `N1`: every line is non-empty and no wider than `M`. -/
+  linesFit : o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M
+  /-- `N2`: one blank between consecutive words on a line, none at either end --
+  splitting a line at its blanks leaves no empty piece. -/
+  singleBlanks : o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank
+  /-- `N3`: the words of the input, in order. -/
+  sameWords : words o = words i
 
-/-- `N3`: the output has exactly the words of the input, in order. -/
-def SameWords (i o : Text) : Prop :=
-  words o = words i
-
-/-- `N4`: no text that has the words of the input, one blank between words and
-lines that fit has fewer lines than the output. -/
-def FewestLines (M : ℕ) (i o : Text) : Prop :=
-  ∀ o', LinesFit M o' → SingleBlanks o' → SameWords i o' →
-    o.count newline ≤ o'.count newline
+/-- `N1` to `N4`: an acceptable output with fewest lines among the acceptable
+outputs.  **The specification, on texts.** -/
+structure Optimal (M : ℕ) (i o : Text) : Prop extends Acceptable M i o where
+  /-- `N4`: no acceptable output has fewer lines. -/
+  fewestLines : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline
 
 end
 
