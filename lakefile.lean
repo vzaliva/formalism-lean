@@ -14,6 +14,7 @@ package «formalism-lean» where
 @[default_target]
 lean_lib Meyer where
   globs := #[.andSubmodules `Meyer]
+  leanOptions := #[⟨`autoImplicit, false⟩]
 
 -- A third specification of the same problem, written to use what Lean already
 -- has: words and lines as lists rather than as runs of characters.  Also
@@ -21,3 +22,4 @@ lean_lib Meyer where
 @[default_target]
 lean_lib Native where
   globs := #[.andSubmodules `Native]
+  leanOptions := #[⟨`autoImplicit, false⟩]
