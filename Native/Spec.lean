@@ -25,15 +25,17 @@ input in order, no line is empty, and no line prints wider than `M`.  Among the
 layouts, those with fewest lines are the solutions, and the output is the
 printed form of one of them.
 
-Nothing here is an implementation.  `Layout` is a property, `Goal` is a relation,
+Nothing here is an implementation.  `Layout` is a property, `ByLayout` is a relation,
 and the relation is not a function: `Native.Properties` shows an input with two
 outputs, as both of Meyer's texts do for theirs.
 
-The module has two parts.  The first is the specification, `Goal`, by way of
-layouts.  The second is the same specification again, `Optimal`, on the output
-text alone: the properties `N1` to `N4` an output is expected to have, in the
-way the book states `T1` to `T8` of `S1`, bundled into a structure that is
-itself a specification.  `Native.Properties` proves the two the same relation.
+The module gives the specification twice, and proves nothing.  `ByLayout`
+says what an output is by way of a layout, a list of lines of words, printed.
+`ByText` says it on the output text alone, as four conditions `N1` to `N4` read
+off the output with `List.splitOn` and `words` -- what the book states as
+`T1` to `T8` *about* `S1` is here the specification itself.  The two share
+only `words`.  `Native.Properties` proves them the same relation,
+`Native.byLayout_iff_byText`.
 
 ## What is and is not Meyer's
 
@@ -51,7 +53,7 @@ relation equal to the book's; that it then differs from the paper's is
 
 The definitions are `noncomputable` only because this toolchain's
 `List.splitOnP` and `List.intercalate` are; the kernel reduces both, and
-`Native.Properties` supplies a `Decidable` instance for `Goal` so that concrete
+`Native.Properties` supplies a `Decidable` instance for `ByLayout` so that concrete
 claims are settled by `decide`.
 -/
 
@@ -60,6 +62,10 @@ namespace Native
 open Meyer
 
 noncomputable section
+
+/-! ## Words
+
+What the two specifications share: the words of the input. -/
 
 /-- A word: a non-empty run of characters none of which is a break. -/
 abbrev Word := Text
@@ -72,6 +78,11 @@ This is `Meyer.Book.words`. -/
 def words (t : Text) : List Word :=
   (t.splitOnP (IsBreak ·)).filter (· ≠ [])
 
+/-! ## The specification by layouts
+
+An output is the printed form of a layout of the words of the input, one with
+as few lines as any. -/
+
 /-- A line is printed with one blank between consecutive words. -/
 def renderLine (l : Line) : Text :=
   List.intercalate [blank] l
@@ -80,8 +91,13 @@ def renderLine (l : Line) : Text :=
 def render (ls : List Line) : Text :=
   List.intercalate [newline] (ls.map renderLine)
 
+/-! The line limit, Naur's `MAXPOS` and the book's `M`, is a parameter of
+everything that follows, and the first explicit argument of each definition
+that mentions it. -/
+variable (M : ℕ)
+
 /-- `ls` lays the words `ws` out in lines of at most `M` characters. -/
-structure Layout (M : ℕ) (ws : List Word) (ls : List Line) : Prop where
+structure Layout (ws : List Word) (ls : List Line) : Prop where
   /-- The lines carry exactly the words, in order. -/
   flatten : ls.flatten = ws
   /-- No line is empty. -/
@@ -89,35 +105,33 @@ structure Layout (M : ℕ) (ws : List Word) (ls : List Line) : Prop where
   /-- No line prints wider than `M`. -/
   fits : ∀ l ∈ ls, (renderLine l).length ≤ M
 
-/-- **The specification.**  `o` is the printed form of a layout of the words of
-`i` that has as few lines as any layout of them. -/
-def Goal (M : ℕ) (i o : Text) : Prop :=
+/-- **The specification by layouts.**  `o` is the printed form of a layout of
+the words of `i` that has as few lines as any layout of them. -/
+def ByLayout (i o : Text) : Prop :=
   ∃ ls, Layout M (words i) ls ∧
     (∀ ls', Layout M (words i) ls' → ls.length ≤ ls'.length) ∧ o = render ls
 
-/-! ## The specification again, on texts
+/-! ## The specification on texts
 
-`Goal` says what an output is by way of a layout, a list of lines of words.
-The same problem can be specified on the output text alone, with nothing behind
-it.  An output is *acceptable* if its lines are non-empty and fit, its words are
-separated by single blanks, and they are the words of the input; it is *optimal*
-if no acceptable text has fewer lines.  The fields are the properties `N1` to
-`N4`, each read off the output with `List.splitOn` and `words`; `List.splitOn`
-reads the empty text as one empty line, hence the proviso `o ≠ []` in `N1` and
-`N2`.
+The same problem specified on the output text alone, with nothing behind it.
+An output is *acceptable* if its lines are non-empty and fit, its words are
+separated by single blanks, and they are the words of the input; it is the
+output if no acceptable text has fewer lines.  The fields are the conditions
+`N1` to `N4`, each read off the output with `List.splitOn` and `words`;
+`List.splitOn` reads the empty text as one empty line, hence the proviso
+`o ≠ []` in `N1` and `N2`.
 
-The two formulations are the same relation, `Native.goal_iff_optimal`, and
-each has what the other lacks.  `Goal` is decidable and comes with an induction
-on layouts.  `Optimal` is the problem statement as Naur posed it, read off the
-output, and has the shape Meyer's specifications have -- a minimisation over a
-set of candidates: it is `MIN_SET` of `Acceptable` under the number of new
-lines, `Native.optimal_iff_minSet`, as the 1985 `goal` is `MIN_SET` of
-`TRANSF (i)`.  The book's `T1` to `T8` have no counterpart to
-`goal_iff_optimal`; that is the point of stating the properties as a
-specification. -/
+The two specifications are the same relation, `Native.byLayout_iff_byText`,
+and each has what the other lacks.  `ByLayout` is decidable and comes with an
+induction on layouts.  `ByText` is the problem statement as Naur posed it, read
+off the output, and has the shape Meyer's specifications have -- a minimisation
+over a set of candidates: it is `MIN_SET` of `Acceptable` under the number of
+new lines, `Native.byText_iff_minSet`, as the 1985 `goal` is `MIN_SET` of
+`TRANSF (i)`.  Since `ByText` is a specification and not a list of claims,
+the book's `T1` to `T8` have no counterpart to `byLayout_iff_byText`. -/
 
 /-- `N1` to `N3`: what any acceptable output of `i` looks like. -/
-structure Acceptable (M : ℕ) (i o : Text) : Prop where
+structure Acceptable (i o : Text) : Prop where
   /-- `N1`: every line is non-empty and no wider than `M`. -/
   linesFit : o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M
   /-- `N2`: one blank between consecutive words on a line, none at either end --
@@ -126,9 +140,9 @@ structure Acceptable (M : ℕ) (i o : Text) : Prop where
   /-- `N3`: the words of the input, in order. -/
   sameWords : words o = words i
 
-/-- `N1` to `N4`: an acceptable output with fewest lines among the acceptable
-outputs.  **The specification, on texts.** -/
-structure Optimal (M : ℕ) (i o : Text) : Prop extends Acceptable M i o where
+/-- **The specification on texts.**  An acceptable output with fewest lines
+among the acceptable outputs; its fields are `N1` to `N4`. -/
+structure ByText (i o : Text) : Prop extends Acceptable M i o where
   /-- `N4`: no acceptable output has fewer lines. -/
   fewestLines : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline
 

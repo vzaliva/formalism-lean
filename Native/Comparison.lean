@@ -4,11 +4,11 @@ import Meyer.Book.Facts
 /-!
 # The Lean-native specification against the book's
 
-`Native.Goal` is the same relation as the book's `S1`, `goal_iff_book`.  So
-everything the chapter proves about `S1` holds of `Goal` as well -- `T1` is
-transferred explicitly as `length_le_of_goal`, the inequality
-`Native.length_of_goal` sharpens -- and, since `Meyer.Comparison` proves the
-book's relation different from the paper's, `Goal` differs from the 1985
+`Native.ByLayout` is the same relation as the book's `S1`, `byLayout_iff_book`.  So
+everything the chapter proves about `S1` holds of `ByLayout` as well -- `T1` is
+transferred explicitly as `length_le_of_byLayout`, the inequality
+`Native.length_of_byLayout` sharpens -- and, since `Meyer.Comparison` proves the
+book's relation different from the paper's, `ByLayout` differs from the 1985
 relation too.  That corollary is not restated here.
 
 The equivalence runs through one observation: a shortest recast of `i` is the
@@ -122,15 +122,15 @@ private lemma maxLine_render_le_iff {M : ℕ} : ∀ {ls : List Line},
 
 /-! ## The equivalence -/
 
-/-- **The book's specification is this one.**  `Goal M i o ↔ Meyer.Book.Goal M i o`.
+/-- **The book's specification is this one.**  `ByLayout M i o ↔ Meyer.Book.Goal M i o`.
 
 Reading the book's `S1` through the lemmas above: its shortest recasts are the
 printed cuts of the words of the input; `maxline ≤ M` on a printed cut says that
 every line fits; and `new_lines` counts the lines less one.  So minimising
 `new_lines` over the shortest recasts with `maxline ≤ M` is minimising the
-number of lines over the layouts, and `S1` and `Goal` accept the same
+number of lines over the layouts, and `S1` and `ByLayout` accept the same
 outputs. -/
-theorem goal_iff_book (M : ℕ) (i o : Text) : Goal M i o ↔ Book.Goal M i o := by
+theorem byLayout_iff_book (M : ℕ) (i o : Text) : ByLayout M i o ↔ Book.Goal M i o := by
   have hnl : ∀ ls : List Line, ls.flatten = words i → ∀ l ∈ ls, newline ∉ renderLine l :=
     fun ls hf l hl => newline_not_mem_renderLine fun w hw => (words_of_cut hf l hl w hw).2
   rw [Book.Goal, Book.mem_solutions_iff]
@@ -160,12 +160,13 @@ theorem goal_iff_book (M : ℕ) (i o : Text) : Goal M i o ↔ Book.Goal M i o :=
         have h₂ := newLines_render (List.cons_ne_nil l' ls') (hnl _ hl'.flatten)
         omega
 
-/-- The book's `T1` for `Goal`, the inequality `Native.length_of_goal` sharpens: an output
+/-- The book's `T1` for `ByLayout`, the inequality `Native.length_of_byLayout` sharpens: an output
 is no
-longer than its input.  Through `goal_iff_book`, an output is a recast of the
+longer than its input.  Through `byLayout_iff_book`, an output is a recast of the
 input, and `Meyer.Book.length_le_of_recast` is `T1`. -/
-theorem length_le_of_goal {M : ℕ} {i o : Text} (h : Goal M i o) : o.length ≤ i.length :=
+theorem length_le_of_byLayout {M : ℕ} {i o : Text} (h : ByLayout M i o) : o.length ≤ i.length :=
   Book.length_le_of_recast
-    (Book.mem_minRecasts_iff.1 (Book.solutions_subset_minRecasts M i ((goal_iff_book M i o).1 h))).1
+    (Book.mem_minRecasts_iff.1
+      (Book.solutions_subset_minRecasts M i ((byLayout_iff_book M i o).1 h))).1
 
 end Native

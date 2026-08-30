@@ -4,23 +4,23 @@ import Mathlib.Data.List.Forall2
 /-!
 # Properties of the Lean-native specification
 
-What can be said about `Native.Goal` on its own, without reference to either of
+What can be said about `Native.ByLayout` on its own, without reference to either of
 Meyer's specifications.  `Native.Comparison` does the comparing.
 
 * **Decidability.**  A layout of a finite list of words is one of finitely many
-  cuts of that list, so `Layout` and `Goal` are decidable and concrete claims are
+  cuts of that list, so `Layout` and `ByLayout` are decidable and concrete claims are
   settled by `decide`.  The specification stays a proposition; that it can be
   evaluated is a theorem about it, not part of it.
 * **Feasibility**, `feasibility`: an input has an output exactly when each of
   its words fits on a line.
-* **Nondeterminism**, `goal_not_functional`, on Meyer's own example.
-* **The two formulations agree**, `goal_iff_optimal`: `Goal`, by way of
-  layouts, and `Optimal`, on the output text, are the same relation.  An
+* **Nondeterminism**, `byLayout_not_functional`, on Meyer's own example.
+* **The two formulations agree**, `byLayout_iff_byText`: `ByLayout`, by way of
+  layouts, and `ByText`, on the output text, are the same relation.  An
   acceptable text is parsed back into a layout by `List.splitOn`, and
   `List.intercalate_splitOn` says printing that layout gives the text back.
-  `optimal_iff_minSet` puts `Optimal` in the shape of Meyer's specifications,
-  and decidability passes from `Goal` to `Optimal` through the equivalence.
-* **The length of an output**, `length_of_goal`: the book's `T1` sharpened to
+  `byText_iff_minSet` puts `ByText` in the shape of Meyer's specifications,
+  and decidability passes from `ByLayout` to `ByText` through the equivalence.
+* **The length of an output**, `length_of_byLayout`: the book's `T1` sharpened to
   an equation, a consequence of `N1` to `N3`.
 
 The machinery is a handful of equations for `render` on a *cut* of a list of
@@ -100,7 +100,7 @@ lemma words_of_cut {i : Text} {ls : List Line} (hf : ls.flatten = words i) :
 /-! ## Cuts
 
 A layout of `ws` is a cut of `ws` into non-empty consecutive pieces, and a list
-has finitely many cuts.  `cuts` lists them, which is what makes `Goal`
+has finitely many cuts.  `cuts` lists them, which is what makes `ByLayout`
 decidable. -/
 
 /-- Every cut of a list into non-empty consecutive pieces. -/
@@ -162,9 +162,9 @@ instance (M : ℕ) (ws : List Word) (ls : List Line) : Decidable (Layout M ws ls
     ⟨fun ⟨h₁, h₂, h₃⟩ => ⟨h₁, h₂, h₃⟩,
       fun ⟨h₁, h₂, h₃⟩ => ⟨h₁, h₂, h₃⟩⟩
 
-/-- Every layout is a cut, so the quantifications in `Goal` are bounded. -/
-private lemma goal_iff_cuts {M : ℕ} {i o : Text} :
-    Goal M i o ↔ ∃ ls ∈ cuts (words i), Layout M (words i) ls ∧
+/-- Every layout is a cut, so the quantifications in `ByLayout` are bounded. -/
+private lemma byLayout_iff_cuts {M : ℕ} {i o : Text} :
+    ByLayout M i o ↔ ∃ ls ∈ cuts (words i), Layout M (words i) ls ∧
       (∀ ls' ∈ cuts (words i), Layout M (words i) ls' → ls.length ≤ ls'.length) ∧
         o = render ls := by
   constructor
@@ -175,9 +175,9 @@ private lemma goal_iff_cuts {M : ℕ} {i o : Text} :
       rfl⟩
 
 /-- The specification is decidable.  The instance reduces in the kernel, so
-`decide` settles concrete instances of `Goal`. -/
-instance (M : ℕ) (i o : Text) : Decidable (Goal M i o) :=
-  decidable_of_iff _ goal_iff_cuts.symm
+`decide` settles concrete instances of `ByLayout`. -/
+instance (M : ℕ) (i o : Text) : Decidable (ByLayout M i o) :=
+  decidable_of_iff _ byLayout_iff_cuts.symm
 
 /-! ## Printing
 
@@ -548,7 +548,7 @@ on a line.  This is the counterpart of the paper's domain theorem and of the
 book's `T8`, stated on the words rather than through `max_line_length` or
 `maxword`. -/
 theorem feasibility (M : ℕ) (i : Text) :
-    (∃ o, Goal M i o) ↔ ∀ w ∈ words i, w.length ≤ M := by
+    (∃ o, ByLayout M i o) ↔ ∀ w ∈ words i, w.length ≤ M := by
   constructor
   · rintro ⟨o, ls, hl, -, -⟩ w hw
     rw [← hl.flatten, List.mem_flatten] at hw
@@ -564,24 +564,24 @@ theorem feasibility (M : ℕ) (i : Text) :
 `␣␣ABC␣␣D␣␣EFG` at `M = 5`, has the two outputs he displays, and the paper's
 `WHO WHAT WHEN` at `MAXPOS = 10` would do as well.  Both are settled by
 `decide`. -/
-theorem goal_not_functional :
-    ∃ (M : ℕ) (i o₁ o₂ : Text), Goal M i o₁ ∧ Goal M i o₂ ∧ o₁ ≠ o₂ :=
+theorem byLayout_not_functional :
+    ∃ (M : ℕ) (i o₁ o₂ : Text), ByLayout M i o₁ ∧ ByLayout M i o₂ ∧ o₁ ≠ o₂ :=
   ⟨5, "  ABC  D  EFG".toList, "ABC D\nEFG".toList, "ABC\nD EFG".toList,
     by decide, by decide, by decide⟩
 
 /-- The paper's example, for good measure. -/
-example : Goal 10 "WHO WHAT WHEN".toList "WHO WHAT\nWHEN".toList ∧
-    Goal 10 "WHO WHAT WHEN".toList "WHO\nWHAT WHEN".toList ∧
-    ¬ Goal 10 "WHO WHAT WHEN".toList "WHO\nWHAT\nWHEN".toList := by
+example : ByLayout 10 "WHO WHAT WHEN".toList "WHO WHAT\nWHEN".toList ∧
+    ByLayout 10 "WHO WHAT WHEN".toList "WHO\nWHAT WHEN".toList ∧
+    ¬ ByLayout 10 "WHO WHAT WHEN".toList "WHO\nWHAT\nWHEN".toList := by
   decide
 
 /-! ## An input of breaks only -/
 
 /-- The counterpart of the book's `T7`: an input made of breaks only has exactly
 one output, the empty text. -/
-theorem goal_of_forall_isBreak {M : ℕ} {i : Text} (h : ∀ c ∈ i, IsBreak c) (o : Text) :
-    Goal M i o ↔ o = [] := by
-  rw [Goal, words_eq_nil h]
+theorem byLayout_of_forall_isBreak {M : ℕ} {i : Text} (h : ∀ c ∈ i, IsBreak c) (o : Text) :
+    ByLayout M i o ↔ o = [] := by
+  rw [ByLayout, words_eq_nil h]
   constructor
   · rintro ⟨ls, hl, -, rfl⟩
     rw [eq_nil_of_cut hl.nonempty hl.flatten, render_nil]
@@ -590,7 +590,7 @@ theorem goal_of_forall_isBreak {M : ℕ} {i : Text} (h : ∀ c ∈ i, IsBreak c)
 
 /-! ## The two formulations agree
 
-Each output of `Goal` is `render ls` for a layout `ls` of the words of the
+Each output of `ByLayout` is `render ls` for a layout `ls` of the words of the
 input, and `N1` to `N3` are read off that.  `N4` and the converse need the other
 direction: an acceptable text is `render (parse o)` for a layout `parse o`, and
 its new lines count its lines. -/
@@ -657,9 +657,9 @@ private lemma count_newline_render_of_layout {M : ℕ} {i : Text} {l : Line} {ls
   count_newline_render (List.cons_ne_nil l ls) fun l' hl' =>
     newline_not_mem_renderLine fun w hw => (words_of_cut hl.flatten l' hl' w hw).2
 
-/-- An output is optimal: acceptable, and with no more lines than any
-acceptable text. -/
-private lemma Goal.optimal {M : ℕ} {i o : Text} (h : Goal M i o) : Optimal M i o := by
+/-- An output of `ByLayout` is one of `ByText`: acceptable, and with no more
+lines than any acceptable text. -/
+private lemma ByLayout.byText {M : ℕ} {i o : Text} (h : ByLayout M i o) : ByText M i o := by
   obtain ⟨ls, hl, hmin, rfl⟩ := h
   refine ⟨hl.acceptable, fun o' h' => ?_⟩
   rcases eq_or_ne o' [] with rfl | ho'
@@ -673,9 +673,9 @@ private lemma Goal.optimal {M : ℕ} {i o : Text} (h : Goal M i o) : Optimal M i
     · have hc := count_newline_render_of_layout hl
       omega
 
-/-- An optimal text is an output: the layout `List.splitOn` reads off it has
-no more lines than any layout. -/
-private lemma Optimal.goal {M : ℕ} {i o : Text} (h : Optimal M i o) : Goal M i o := by
+/-- An output of `ByText` is one of `ByLayout`: the layout `List.splitOn` reads
+off it has no more lines than any layout. -/
+private lemma ByText.byLayout {M : ℕ} {i o : Text} (h : ByText M i o) : ByLayout M i o := by
   rcases eq_or_ne o [] with rfl | ho
   · have hw : words i = [] := by rw [← h.sameWords]; exact words_nil
     exact ⟨[], ⟨by rw [hw]; rfl, by simp, by simp⟩, fun _ _ => Nat.zero_le _, rfl⟩
@@ -691,43 +691,43 @@ private lemma Optimal.goal {M : ℕ} {i o : Text} (h : Optimal M i o) : Goal M i
     · have hc' := count_newline_render_of_layout hl'
       omega
 
-/-- **The two formulations are the same relation.**  An output of `Goal` is an
+/-- **The two formulations are the same relation.**  An output of `ByLayout` is an
 acceptable text with fewest lines, and conversely.  The book's `T1` to `T8`
 admit no such theorem: the `M3`-defective reading of `S1` is provably a
 different relation (`Meyer.Book.Bug.goal_unfilled`) and, by the argument in
 `README.md`, has all eight. -/
-theorem goal_iff_optimal {M : ℕ} {i o : Text} : Goal M i o ↔ Optimal M i o :=
-  ⟨Goal.optimal, Optimal.goal⟩
+theorem byLayout_iff_byText {M : ℕ} {i o : Text} : ByLayout M i o ↔ ByText M i o :=
+  ⟨ByLayout.byText, ByText.byLayout⟩
 
-/-- **`Optimal` has the shape of Meyer's specifications**: it is `MIN_SET` of the
+/-- **`ByText` has the shape of Meyer's specifications**: it is `MIN_SET` of the
 acceptable texts under the number of new lines, as the paper's `goal` is
 `FEWEST_LINES (TRANSF (i))`, that is `MIN_SET (TRANSF (i), number_of_new_lines)`. -/
-theorem optimal_iff_minSet {M : ℕ} {i o : Text} :
-    Optimal M i o ↔ o ∈ MinSet {o' | Acceptable M i o'} (List.count newline) :=
+theorem byText_iff_minSet {M : ℕ} {i o : Text} :
+    ByText M i o ↔ o ∈ MinSet {o' | Acceptable M i o'} (List.count newline) :=
   ⟨fun h => ⟨h.toAcceptable, fun _ h' => h.fewestLines _ h'⟩,
     fun ⟨h, hmin⟩ => ⟨h, fun _ h' => hmin _ h'⟩⟩
 
 /-! ## Decidability of the text formulation
 
-`Acceptable` is a bounded condition and decidable outright.  `Optimal`
+`Acceptable` is a bounded condition and decidable outright.  `ByText`
 quantifies over all texts and is not; it becomes decidable through
-`goal_iff_optimal`, which is the layout formulation doing work for the text
+`byLayout_iff_byText`, which is the layout formulation doing work for the text
 one. -/
 
-/-- Acceptability is decidable: each of the three conditions is bounded. -/
+/-- `Acceptable` is decidable: each of the three conditions is bounded. -/
 instance (M : ℕ) (i o : Text) : Decidable (Acceptable M i o) :=
   decidable_of_iff ((o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M) ∧
       (o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank) ∧ words o = words i)
     ⟨fun ⟨h₁, h₂, h₃⟩ => ⟨h₁, h₂, h₃⟩,
       fun ⟨h₁, h₂, h₃⟩ => ⟨h₁, h₂, h₃⟩⟩
 
-/-- Optimality is decidable, by way of the layouts. -/
-instance (M : ℕ) (i o : Text) : Decidable (Optimal M i o) :=
-  decidable_of_iff _ goal_iff_optimal
+/-- `ByText` is decidable, by way of the layouts. -/
+instance (M : ℕ) (i o : Text) : Decidable (ByText M i o) :=
+  decidable_of_iff _ byLayout_iff_byText
 
 /-- Meyer's example, settled on the text formulation. -/
-example : Optimal 5 "  ABC  D  EFG".toList "ABC D\nEFG".toList ∧
-    ¬ Optimal 5 "  ABC  D  EFG".toList "ABC\nD\nEFG".toList := by
+example : ByText 5 "  ABC  D  EFG".toList "ABC D\nEFG".toList ∧
+    ¬ ByText 5 "  ABC  D  EFG".toList "ABC\nD\nEFG".toList := by
   decide
 
 /-! ## The length of an output -/
@@ -737,7 +737,7 @@ separator per gap between words.  This is the book's `T1` sharpened to an
 equation.  It is not a field of `Acceptable` because it follows from `N1` to
 `N3` -- an acceptable text is a printed layout, `Acceptable.layout_parse`, and
 `length_render_cut` measures one -- and so detects nothing they do not. -/
-theorem length_of_goal {M : ℕ} {i o : Text} (h : Goal M i o) (hw : words i ≠ []) :
+theorem length_of_byLayout {M : ℕ} {i o : Text} (h : ByLayout M i o) (hw : words i ≠ []) :
     o.length + 1 = ((words i).map List.length).sum + (words i).length := by
   obtain ⟨ls, hl, -, rfl⟩ := h
   rw [← List.length_flatten]

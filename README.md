@@ -4,7 +4,8 @@ Bertrand Meyer wrote a formal specification of word wrap twice, thirty-seven yea
 apart. This repository transcribes both into Lean 4 and proves the results each text
 states about its own specification: Meyer's two claims from 1985, and `T1` to `T8` from
 the 2022 chapter. It then adds a third specification of the same problem, written to
-use what Lean already has rather than to transcribe a text, and proves it to be the
+use what Lean already has rather than to transcribe a text — given twice, by layouts
+and on the output text, and the two proved the same relation — and proves it to be the
 2022 relation exactly and the 1985 relation not at all.
 
 > Bertrand Meyer, *On Formalism in Specifications*, IEEE Software 2(1):6–26, 1985.
@@ -55,9 +56,9 @@ report of what we looked for, not a systematic review.
 | `Meyer/Book/Bug.lean` | a defect in the book, proved |
 | `Meyer/Comparison.lean` | the two specifications are not the same relation |
 | `Native.lean` | umbrella for the third specification |
-| `Native/Spec.lean` | the Lean-native specification twice over: `Goal`, by way of layouts, and `Optimal`, on the output text. Definitions only |
-| `Native/Properties.lean` | decidability, feasibility, nondeterminism, and `Goal M i o ↔ Optimal M i o` |
-| `Native/Comparison.lean` | `Goal M i o ↔ Meyer.Book.Goal M i o` |
+| `Native/Spec.lean` | the Lean-native specification twice over: `ByLayout` and `ByText`. Definitions only |
+| `Native/Properties.lean` | decidability, feasibility, nondeterminism, and `ByLayout M i o ↔ ByText M i o` |
+| `Native/Comparison.lean` | `ByLayout M i o ↔ Meyer.Book.Goal M i o` |
 
 ## The 1985 paper
 
@@ -230,34 +231,46 @@ Both of Meyer's specifications keep the text as a sequence of characters and rec
 its structure from that sequence: the paper by taking a longest subsequence with no two
 adjacent break characters, the book by taking a shortest element of the closure of a
 rewriting relation, and both by measuring a line as the longest run of characters
-containing no new line. `Native/Spec.lean` writes the same problem the other way round.
-It reads the words off once and never looks at a character again:
+containing no new line. `Native/Spec.lean` writes the same problem the other way round,
+and writes it twice: once by way of layouts, `ByLayout`, and once on the output text
+alone, `ByText`. The two share a single definition, the words of the input, and
+`Native/Properties.lean` proves them the same relation.
 
 ```lean
 def words (t : Text) : List Word := (t.splitOnP (IsBreak ·)).filter (· ≠ [])
+```
+
+A `Word` is a `Text`, a `Line` is a `List Word`, and `words` is the book's `WORDS`
+character for character. It is the only place either specification looks at a
+character.
+
+### By layouts
+
+```lean
 def renderLine (l : Line) : Text := List.intercalate [blank] l
 def render (ls : List Line) : Text := List.intercalate [newline] (ls.map renderLine)
 
-structure Layout (M : ℕ) (ws : List Word) (ls : List Line) : Prop where
+variable (M : ℕ)   -- the line limit, Naur's MAXPOS
+
+structure Layout (ws : List Word) (ls : List Line) : Prop where
   flatten  : ls.flatten = ws
   nonempty : [] ∉ ls
   fits     : ∀ l ∈ ls, (renderLine l).length ≤ M
 
-def Goal (M : ℕ) (i o : Text) : Prop :=
+def ByLayout (i o : Text) : Prop :=
   ∃ ls, Layout M (words i) ls ∧
     (∀ ls', Layout M (words i) ls' → ls.length ≤ ls'.length) ∧ o = render ls
 ```
 
-A `Word` is a `Text`, a `Line` is a `List Word`, and `words` is the book's `WORDS`
-character for character. That is the whole specification; the rest of the module states
-the properties below. What the change of representation buys:
+An output is the printed form of a layout of the words, one with as few lines as any.
+What the change of representation buys, against Meyer's two:
 
 - **No supremum over runs.** The line limit is a bounded quantifier over a list, and
   `maxRun`, with its nonemptiness and boundedness obligations, is not needed.
 - **No finiteness side condition.** A layout of `n` words is one of the finitely many
   cuts of a list of length `n`, so the minimum exists without the care Meyer takes over
   `MAX_SET` in the paper's box "The reasoning behind formal specifications".
-- **Decidability.** `Native/Properties.lean` proves `Goal` decidable, so the worked
+- **Decidability.** `Native/Properties.lean` proves `ByLayout` decidable, so the worked
   examples, Meyer's `␣␣ABC␣␣D␣␣EFG` at `M = 5` and `WHO WHAT WHEN` at `MAXPOS = 10`,
   are settled by `decide` rather than by hand. The specification is still a
   proposition; that it can be evaluated is a theorem about it.
@@ -269,76 +282,85 @@ counterparts (`Native.feasibility` is `T8` and the paper's domain theorem, on th
 directly). `T1`, `T3` and `T4` have no statement at all: they are properties of the
 character encoding, not of the problem.
 
-### The same specification, on texts
-
-As the book states `T1` to `T8` of `S1`, `Native/Spec.lean` states four properties an
-output is expected to have, each read off the output with `List.splitOn` and `words` and
-none of them mentioning how the output was arrived at. They are bundled into two
-`Prop`-structures, and the second is a specification in its own right:
+### On texts
 
 ```lean
-structure Acceptable (M : ℕ) (i o : Text) : Prop where
+structure Acceptable (i o : Text) : Prop where
   linesFit     : o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M   -- N1
   singleBlanks : o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank     -- N2
   sameWords    : words o = words i                                           -- N3
 
-structure Optimal (M : ℕ) (i o : Text) : Prop extends Acceptable M i o where
+structure ByText (i o : Text) : Prop extends Acceptable M i o where
   fewestLines  : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline  -- N4
 ```
 
-(`N1` and `N2` carry the proviso `o ≠ []`, since `List.splitOn` reads the empty text as
-one empty line.) `Optimal` is Naur's problem statement, in the global reading of "filled
-as far as possible", written on the output: an acceptable text with the fewest lines. It
-has the shape both of Meyer's specifications have, a minimisation over a set of
-candidates — `Optimal M i` is `MIN_SET` of the acceptable texts under the number of new
-lines (`Native.optimal_iff_minSet`), as the 1985 `goal` is `MIN_SET` of `TRANSF (i)` —
-but the candidate set is described by three checks on the text rather than constructed.
+An output is an acceptable text with the fewest lines, where acceptable means: every
+line is non-empty and fits, words are separated by single blanks with none at the ends,
+and the words are the input's. (`N1` and `N2` carry the proviso `o ≠ []`, since
+`List.splitOn` reads the empty text as one empty line.) Nothing stands behind the four
+conditions — no layout, no `render` — and where `ByLayout` constructs the output with
+`List.intercalate`, `ByText` inspects it with `List.splitOn`.
 
-The two formulations are the same relation:
+This is Naur's problem statement, in the global reading of "filled as far as
+possible", written on the output. It also has the shape both of Meyer's specifications
+have, a minimisation over a set of candidates: `ByText M i` is `MIN_SET` of the
+acceptable texts under the number of new lines (`Native.byText_iff_minSet`), as the
+1985 `goal` is `MIN_SET` of `TRANSF (i)`. The difference is that the candidate set is
+described by three checks on the text rather than constructed by a pipeline of
+relations.
+
+The four conditions are labelled `N1` to `N4` because they stand where the book's `T1`
+to `T8` stand — each is something one would want to prove of an output — with one
+difference of status: the book's are claims about `S1`, these are the specification.
+`N1` and `N2` are the book's `T6` and more; `N3` is its `T3`, about a solution rather
+than a recast. The book's `T1`, on the length of the output, is not a condition:
+`Native.length_of_byLayout` states it in its sharpest form, `o.length + 1 =
+((words i).map length).sum + (words i).length`, but it is a consequence of `N1` to
+`N3` (an acceptable text is a printed layout, and a printed layout has that length), so
+as a condition it would exclude nothing the three do not.
+
+### The two are one relation
 
 ```lean
-theorem goal_iff_optimal : Goal M i o ↔ Optimal M i o
+theorem byLayout_iff_byText : ByLayout M i o ↔ ByText M i o
 ```
 
-Each has what the other lacks. `Goal` is decidable and comes with an induction on
-layouts; `Optimal` is readable and quantifies over all texts, so it is not decidable on
-its face — it becomes so through the equivalence, which is the layout formulation doing
-work for the text one. The `←` direction is where Lean's library does the work:
+Each has what the other lacks. `ByLayout` is decidable and comes with an induction on
+layouts; `ByText` is readable and quantifies over all texts, so it is not decidable on
+its face — it becomes so through the equivalence, the layout specification doing work
+for the text one. The `←` direction is where Lean's library does the work:
 `List.splitOn` reads an acceptable text back into a layout, and `List.intercalate_splitOn`
 says that printing that layout gives the text back.
 
-`N1` and `N2` are the book's `T6` and more, and `N3` is its `T3` about a solution rather
-than a recast. The book's `T1`, on the length of the output, is not a field:
-`Native.length_of_goal` states it in its sharpest form, `o.length + 1 =
-((words i).map length).sum + (words i).length`, but that is a consequence of `N1` to `N3`
-(an acceptable text is a printed layout, and a printed layout has that length), so as a
-property it would detect nothing the three do not.
+The theorem also settles a question the 2022 defect raises. `N1` to `N3` are conditions
+on the printed shape of an output and none of them sees the minimisation: that is the
+blind spot the `M3` defect sat in, and the book's own `T1` to `T8` share it. `N4` closes
+it, and `byLayout_iff_byText` says it closes it completely — a relation with these four
+conditions is *the* relation, so the question "would the conditions have caught the
+defect?" has a theorem for an answer rather than a case-by-case argument. The book's
+`T1` to `T8` admit no such theorem, and cannot: the `M3`-defective reading of `S1` in
+`Meyer/Book/Bug.lean` is provably a different relation and, by the argument above
+(mechanised for the inclusion and the witness, argued for the eight properties),
+satisfies all eight.
 
-`N1` to `N3` are properties of the printed shape of an output, and none of them sees the
-minimisation: that is the blind spot the 2022 `M3` defect sat in, and Meyer's own list
-shares it. `N4` closes it, and `goal_iff_optimal` says it closes it completely: the
-question "would the properties have caught the defect?" has a theorem for an answer
-rather than a case-by-case argument. `T1` to `T8` have no such theorem, and cannot: the
-`M3`-defective reading of `S1` in `Meyer/Book/Bug.lean` is provably a different relation
-and, by the argument above (mechanised for the inclusion and the witness, argued for the
-eight properties), satisfies all eight.
+### Against Meyer's
 
 The main result of `Native/Comparison.lean` is that the new specification is the book's:
 
 ```lean
-theorem goal_iff_book (M : ℕ) (i o : Text) : Goal M i o ↔ Meyer.Book.Goal M i o
+theorem byLayout_iff_book (M : ℕ) (i o : Text) : ByLayout M i o ↔ Meyer.Book.Goal M i o
 ```
 
-so everything the chapter proves about `S1` holds of `Goal`, and, since
+so everything the chapter proves about `S1` holds of `ByLayout` and `ByText`, and, since
 `Meyer.Comparison.specifications_differ` separates the book's relation from the paper's,
-`Goal` differs from the 1985 relation as well; that corollary is not restated. The proof
-runs through one observation: a shortest recast of
-`i` has no two adjacent separators and none at either end, since `[R]`, `[L]` and `[T]`
-would each shorten it, and such a text is the printed form of a cut of its words; every
-printed cut of the words of `i` is in turn a shortest recast, reached by exchanging
-separators and attaining the length bound of exercise 9-E.6. On a printed cut,
-`maxline ≤ M` says every line fits and `new_lines` counts the lines less one, so the
-book's two minimisations are the layout's one.
+they differ from the 1985 relation as well; that corollary is not restated. The proof
+runs through one observation: a shortest recast of `i` has no two adjacent separators
+and none at either end, since `[R]`, `[L]` and `[T]` would each shorten it, and such a
+text is the printed form of a cut of its words; every printed cut of the words of `i` is
+in turn a shortest recast, reached by exchanging separators and attaining the length
+bound of exercise 9-E.6. On a printed cut, `maxline ≤ M` says every line fits and
+`new_lines` counts the lines less one, so the book's two minimisations are the layout's
+one.
 
 Where the two Meyer specifications differ, over separators at the ends of the text, the
 new one sides with the book: a leading or trailing break leaves no trace. One cost is
