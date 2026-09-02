@@ -59,10 +59,13 @@ empty are both fatal, and each contradicts the domain theorem.
 
 That much is already fatal.  Meyer's theorem, proved two pages later, says
 `dom (goal)` is exactly the set of texts containing no word longer than `MAXPOS`.
-For any `MAXPOS ≥ 1` the one-letter text `"h"` is such a text and has no output,
-which is what `domGoal_ne_noOversizeWord` below establishes.  Inputs without a
-word in them are untouched, and so is the whole specification at `MAXPOS = 0`,
-where no text with a letter in it is claimed to be solvable.  Strictly increasing is therefore
+Under the literal reading `dom (goal)` contains only texts made of break
+characters, which is `domGoal_subset_breaksOnly` below: no text with a letter in
+it has an output, Meyer's own worked example `WHO WHAT WHEN` included
+(`Meyer/Paper/Examples.lean`).  For any `MAXPOS ≥ 1` a one-letter text is
+therefore a counterexample to his theorem.  Inputs without a letter in them are
+untouched, and so is the whole specification at `MAXPOS = 0`, where no text with
+a letter in it is claimed to be solvable.  Strictly increasing is therefore
 forced, not merely preferable.
 
 ## What is and is not claimed
@@ -165,7 +168,7 @@ private lemma replicate_mem_singleBreaks {a : Text α} {p : ℕ} {c : α}
 In Meyer's own terms this is the failure of `MAX_SET`'s finiteness side
 condition, and `COMPACTED (a)` has no value at all.  `Meyer.MaxSet` totalises
 `MAX_SET` as "no member does better", under which the value is `∅`. -/
-theorem compacted_eq_empty {a : Text α} {p : ℕ} {c : α}
+private lemma compacted_eq_empty {a : Text α} {p : ℕ} {c : α}
     (hp : a[p]? = some c) (hc : ¬ IsBreak c) :
     Compacted a = ∅ := by
   ext x
@@ -195,42 +198,18 @@ private lemma not_mem_domGoal [DecidableEq α] {a : Text α} {p : ℕ} {c : α}
   rw [transf_eq_empty MAXPOS hp hc] at ho
   exact ho
 
-/-! ## The conflict
-
-Meyer states, and derives from the definitions, that
-
-> `dom (goal) = {s | ∀i ∈ 1..length (s) − MAXPOS, ∃j ∈ i..i + MAXPOS, s (j) ∈ BREAK_CHAR}`
-
-i.e. that the problem is solvable exactly for texts with no word longer than
-`MAXPOS`.  Under the literal reading of "subsequence" that is false. -/
-
-/-- A single letter is a text with no oversize word, for any `MAXPOS ≥ 1`: its
-only infixes have length `0` and `1`, and neither is `MAXPOS + 1`. -/
-private lemma singleton_mem_noOversizeWord (h : 1 ≤ MAXPOS) (c : α) :
-    [c] ∈ NoOversizeWord α MAXPOS := by
-  intro t ht hlen
-  have := ht.length_le
-  simp only [List.length_cons, List.length_nil] at this
-  omega
+/-- **The specification, read literally, accepts no text with a letter in it.**
+`dom (goal)` contains only texts made of break characters.  Meyer's theorem says
+it is the set of texts with no word longer than `MAXPOS`, so for any `MAXPOS ≥ 1`
+a one-letter text separates the two.  Meyer's own `WHO WHAT WHEN` is among the
+casualties: see `Meyer/Paper/Examples.lean`. -/
+theorem domGoal_subset_breaksOnly [DecidableEq α] :
+    DomGoal α MAXPOS ⊆ {a | ∀ c ∈ a, IsBreak c} := by
+  intro a ha c hc
+  by_contra hbc
+  obtain ⟨p, hp⟩ := List.mem_iff_getElem?.1 hc
+  exact not_mem_domGoal MAXPOS hp hbc ha
 
 end
-
-variable {α : Type*} [DecidableEq α] [Lettered α] (MAXPOS : ℕ)
-
-/-- **Meyer's theorem fails under the literal reading.**  A one-letter text
-contains no word longer than `MAXPOS`, so his characterisation places it in
-`dom (goal)`; the literal reading of "subsequence" places it outside.  The two
-cannot both stand, and since the characterisation is what he proves, the literal
-reading is the one that goes.
-
-The alphabet must have a letter for the text to exist, which is the book's
-`LETTER ≠ ∅`; on an alphabet of breaks only the two readings agree. -/
-theorem domGoal_ne_noOversizeWord (h : 1 ≤ MAXPOS) :
-    DomGoal α MAXPOS ≠ NoOversizeWord α MAXPOS := by
-  intro hEq
-  obtain ⟨c, hc⟩ := Lettered.exists_letter (α := α)
-  have hin : [c] ∈ NoOversizeWord α MAXPOS := singleton_mem_noOversizeWord MAXPOS h c
-  have hout : [c] ∉ DomGoal α MAXPOS := not_mem_domGoal MAXPOS (p := 0) (c := c) rfl hc
-  exact hout (hEq ▸ hin)
 
 end Meyer.Paper.Bug

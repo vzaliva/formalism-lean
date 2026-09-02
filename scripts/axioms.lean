@@ -18,8 +18,7 @@ it.  Anything else means an axiom has crept in.
 -/
 
 #print axioms Meyer.Paper.Bug.singleBreaks_subset
-#print axioms Meyer.Paper.Bug.compacted_eq_empty
-#print axioms Meyer.Paper.Bug.domGoal_ne_noOversizeWord
+#print axioms Meyer.Paper.Bug.domGoal_subset_breaksOnly
 #print axioms Meyer.Paper.goal_not_functional
 #print axioms Meyer.Paper.trimmed_nonempty_iff
 #print axioms Meyer.Paper.domGoal_eq_noOversizeWord

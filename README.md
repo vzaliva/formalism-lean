@@ -87,13 +87,15 @@ sorted with a non-strict `≤`. So a position may repeat: in his own example
 `<a b a a b d c d>`, the index sequence `<3 3 3 3>` is sorted, making `<a a a a>` a
 "subsequence", and a run of any length qualifies just as well.
 
-`COMPACTED (a)` asks for the *longest* members of `SINGLE_BREAKS (a)`. Whenever `a`
-contains a character that is not a break, repetition supplies members of every length,
-so there is no longest and `a` has no output at all. One input settles it: for any
-`MAXPOS ≥ 1` the one-letter text `"h"` contains no word longer than `MAXPOS`, so Meyer's
-own domain theorem places it in `dom (goal)`, while the literal reading places it
-outside. The two cannot both stand, and since the theorem is what he proves, the literal
-reading is the one that goes.
+`COMPACTED (a)` asks for the *longest* members of `SINGLE_BREAKS (a)`. Whenever `a` contains
+a character that is not a break, repetition supplies members of every length, so there is no
+longest and `a` has no output at all. Under the literal reading `dom (goal)` therefore holds
+only texts made of break characters (`Meyer.Paper.Bug.domGoal_subset_breaksOnly`): the
+specification cannot format any text with a letter in it, Meyer's own `WHO WHAT WHEN`
+included (`Meyer/Paper/Examples.lean`). His domain theorem says `dom (goal)` is the set of
+texts with no word longer than `MAXPOS`, so for any `MAXPOS ≥ 1` a one-letter text
+contradicts it. The two cannot both stand, and since the theorem is what he proves, the
+literal reading is the one that goes.
 
 `Meyer/Paper/Bug.lean` proves that, and proves the literal reading is the more permissive
 of the two: the defect adds members to `SINGLE_BREAKS` and removes none. Its docstring
@@ -411,11 +413,12 @@ both. Neither class says that `blank` and `new_line` differ, because neither tex
 Making the assumptions explicit turns four remarks into checked facts:
 
 - **`LETTER ≠ ∅` serves exactly one of the book's eight theorems.** `Lettered` occurs in
-  the types of exactly three theorems in the repository: `T5`, nondeterminism
+  the types of exactly two theorems in the repository: `T5`, nondeterminism
   (`Meyer.Book.goal_not_functional`), proved from an abstract letter `c` with the input
-  `c cc c` at `M = 4`; the book's `M3` defect (`Meyer.Book.Bug.goal_unfilled`), which is
-  the same input with a third output `c / cc / c`; and the 1985 subsequence defect
-  (`Meyer.Paper.Bug.domGoal_ne_noOversizeWord`), whose witness is a one-letter text.
+  `c cc c` at `M = 4`; and the book's `M3` defect (`Meyer.Book.Bug.goal_unfilled`), which is
+  the same input with a third output `c / cc / c`. The 1985 subsequence defect
+  (`Meyer.Paper.Bug.domGoal_subset_breaksOnly`) needs no letter and is stated over
+  `Alphabet`; its `WHO WHAT WHEN` instance is settled at `Char` in the `Examples` module.
   `T1`–`T4` and `T6`–`T8` are stated and proved over `Alphabet`. The transcriptions never
   mention `Char`; Meyer's own witnesses — `WHO WHAT WHEN`, `␣␣ABC␣␣D␣␣EFG` with its third
   output, `␣AB` — are settled by `decide` in the `Examples` modules, and the paper's
@@ -454,7 +457,7 @@ lake exe cache get   # mathlib binaries
 lake build
 ```
 
-A clean build produces no warnings and no `sorry`s. To check what the thirty-one
+A clean build produces no warnings and no `sorry`s. To check what the thirty
 theorems depend on:
 
 ```sh

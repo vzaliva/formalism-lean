@@ -1,4 +1,5 @@
 import Meyer.Paper.Facts
+import Meyer.Paper.Bug
 import Meyer.Char
 
 /-!
@@ -6,7 +7,8 @@ import Meyer.Char
 
 `Meyer.Paper` is stated over an abstract alphabet.  This module instantiates it
 twice: at `Char`, for Meyer's own example and his nondeterminism claim, which
-`decide` settles; and at `Bool`, an alphabet with no letters, to check that the
+`decide` settles, and for what the literal reading of "subsequence" does to that
+example; and at `Bool`, an alphabet with no letters, to check that the
 1985 specification needs none.
 -/
 
@@ -86,6 +88,11 @@ should be nondeterministic." -/
 theorem goal_not_functional :
     ∃ (n : ℕ) (i o₁ o₂ : Text Char), Goal n i o₁ ∧ Goal n i o₂ ∧ o₁ ≠ o₂ :=
   ⟨10, wIn, wOut₁, wOut₂, goal_wOut₁, goal_wOut₂, by decide⟩
+
+/-- Under the literal reading of "subsequence" (`Meyer.Paper.Bug`), Meyer's own
+worked example has no solution at all: its first character is a letter. -/
+example : wIn ∉ Bug.DomGoal Char 10 :=
+  fun h => (by decide : ¬ IsBreak 'W') (Bug.domGoal_subset_breaksOnly 10 h 'W' (by decide))
 
 end Nondeterminism
 

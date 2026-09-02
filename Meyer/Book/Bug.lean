@@ -55,7 +55,7 @@ them, by hand or by machine, would not have found it.
 
 The 1985 defect is the opposite case.  It makes Meyer's own domain theorem false,
 so mechanising the paper catches it at once
-(`Meyer.Paper.Bug.domGoal_ne_noOversizeWord`); it survived only because the
+(`Meyer.Paper.Bug.domGoal_subset_breaksOnly`); it survived only because the
 derivation was three sentences of prose that silently used the intended meaning
 of "subsequence".  The two are the two ways a formal specification goes wrong:
 one is caught by checking the argument, the other only by reading each definition
