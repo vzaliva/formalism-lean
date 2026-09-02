@@ -301,20 +301,21 @@ character encoding, not of the problem.
 
 ```lean
 structure Acceptable.Fields (i o : Text) : Prop where
-  linesFit     : o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M   -- N1
-  singleBlanks : o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank     -- N2
-  sameWords    : words o = words i                                           -- N3
+  linesFit     : o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M
+  singleBlanks : o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank
+  sameWords    : words o = words i
 abbrev Acceptable : Spec Char := Acceptable.Fields M
 
 structure ByText.Fields (i o : Text) : Prop extends Acceptable.Fields M i o where
-  fewestLines  : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline  -- N4
+  fewestLines  : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline
 abbrev ByText : Spec Char := ByText.Fields M
 ```
 
 An output is an acceptable text with the fewest lines, where acceptable means: every
-line is non-empty and fits, words are separated by single blanks with none at the ends,
-and the words are the input's. (`N1` and `N2` carry the proviso `o ≠ []`, since
-`List.splitOn` reads the empty text as one empty line.) `Acceptable` is the candidate
+line is non-empty and fits (`linesFit`), words are separated by single blanks with none
+at the ends (`singleBlanks`), and the words are the input's (`sameWords`). The first two
+carry the proviso `o ≠ []`, since `List.splitOn` reads the empty text as one empty
+line. `Acceptable` is the candidate
 relation `ByText` minimises over; it has the type of a specification and is not one.
 Nothing stands behind the four conditions — no layout, no `render` — and where
 `ByLayout` constructs the output with `List.intercalate`, `ByText` inspects it with
@@ -328,15 +329,15 @@ acceptable texts under the number of new lines (`Native.byText_iff_minSet`), as 
 described by three checks on the text rather than constructed by a pipeline of
 relations.
 
-The four conditions are labelled `N1` to `N4` because they stand where the book's `T1`
-to `T8` stand — each is something one would want to prove of an output — with one
-difference of status: the book's are claims about `S1`, these are the specification.
-`N1` and `N2` are the book's `T6` and more; `N3` is its `T3`, about a solution rather
-than a recast. The book's `T1`, on the length of the output, is not a condition:
+The four conditions stand where the book's `T1` to `T8` stand — each is something one
+would want to prove of an output — with one difference of status: the book's are
+claims about `S1`, these are the specification. `linesFit` and `singleBlanks` are the
+book's `T6` and more; `sameWords` is its `T3`, about a solution rather than a recast.
+The book's `T1`, on the length of the output, is not a condition:
 `Native.length_of_byLayout` states it in its sharpest form, `o.length + 1 =
-((words i).map length).sum + (words i).length`, but it is a consequence of `N1` to
-`N3` (an acceptable text is a printed layout, and a printed layout has that length), so
-as a condition it would exclude nothing the three do not.
+((words i).map length).sum + (words i).length`, but it is a consequence of the three
+conditions of `Acceptable` (an acceptable text is a printed layout, and a printed
+layout has that length), so as a condition it would exclude nothing the three do not.
 
 ### The two are one relation
 
@@ -353,10 +354,11 @@ for the text one. The `←` direction is where Lean's library does the work:
 `List.splitOn` reads an acceptable text back into a layout, and `List.intercalate_splitOn`
 says that printing that layout gives the text back.
 
-The theorem also settles a question the 2022 defect raises. `N1` to `N3` are conditions
-on the printed shape of an output and none of them sees the minimisation: that is the
-blind spot the `M3` defect sat in, and the book's own `T1` to `T8` share it. `N4` closes
-it, and `byLayout_eq_byText` says it closes it completely — a relation with these four
+The theorem also settles a question the 2022 defect raises. The three conditions of
+`Acceptable` concern the printed shape of an output and none of them sees the
+minimisation: that is the blind spot the `M3` defect sat in, and the book's own `T1` to
+`T8` share it. `fewestLines` closes it, and `byLayout_eq_byText` says it closes it
+completely — a relation with these four
 conditions is *the* relation, so the question "would the conditions have caught the
 defect?" has a theorem for an answer rather than a case-by-case argument. The book's
 `T1` to `T8` admit no such theorem, and cannot: the `M3`-defective reading of `S1` in

@@ -27,9 +27,10 @@ printed form of one of them.
 
 The module gives the specification twice, and proves nothing.  `ByLayout`
 says what an output is by way of a layout, a list of lines of words, printed.
-`ByText` says it on the output text alone, as four conditions `N1` to `N4` read
-off the output with `List.splitOn` and `words` -- what the book states as
-`T1` to `T8` *about* `S1` is here the specification itself.  The two share
+`ByText` says it on the output text alone, as the four conditions `linesFit`,
+`singleBlanks`, `sameWords` and `fewestLines`, each read off the output with
+`List.splitOn` and `words` -- what the book states as `T1` to `T8` *about* `S1`
+is here the specification itself.  The two share
 only `words`.  Both are relations between input and output, `Meyer.Spec`, and
 `Native.Properties` proves them the same relation, `Native.byLayout_eq_byText`.
 
@@ -124,12 +125,11 @@ def ByLayout : Spec Char := fun i o =>
 
 The same problem specified on the output text alone, with nothing behind it.
 An output is *acceptable* if its lines are non-empty and fit, its words are
-separated by single blanks, and they are the words of the input; it is the
-output if no acceptable text has fewer lines.  The conditions are `N1` to
-`N4`, the fields of `Acceptable.Fields` and `ByText.Fields`, each read off the
-output with `List.splitOn` and `words`;
-`List.splitOn` reads the empty text as one empty line, hence the proviso
-`o ≠ []` in `N1` and `N2`.
+separated by single blanks, and they are the words of the input; it is an
+output if no acceptable text has fewer lines.  The conditions are the fields
+of `Acceptable.Fields` and `ByText.Fields`, each read off the output with
+`List.splitOn` and `words`; `List.splitOn` reads the empty text as one empty
+line, hence the proviso `o ≠ []` in `linesFit` and `singleBlanks`.
 
 The two specifications are the same relation, `Native.byLayout_eq_byText`,
 and each has what the other lacks.  `ByLayout` is decidable and comes with an
@@ -140,24 +140,23 @@ new lines, `Native.byText_iff_minSet`, as the 1985 `goal` is `MIN_SET` of
 `TRANSF (i)`.  Since `ByText` is a specification and not a list of claims,
 the book's `T1` to `T8` have no counterpart to `byLayout_eq_byText`. -/
 
-/-- The conditions `N1` to `N3`: what any acceptable output of `i` looks like. -/
+/-- What any acceptable output of `i` looks like: three conditions read off the text. -/
 structure Acceptable.Fields (i o : Text) : Prop where
-  /-- `N1`: every line is non-empty and no wider than `M`. -/
+  /-- Every line is non-empty and no wider than `M`. -/
   linesFit : o ≠ [] → ∀ l ∈ o.splitOn newline, l ≠ [] ∧ l.length ≤ M
-  /-- `N2`: one blank between consecutive words on a line, none at either end --
+  /-- One blank between consecutive words on a line, none at either end --
   splitting a line at its blanks leaves no empty piece. -/
   singleBlanks : o ≠ [] → ∀ l ∈ o.splitOn newline, [] ∉ l.splitOn blank
-  /-- `N3`: the words of the input, in order. -/
+  /-- The words of the input, in order. -/
   sameWords : words o = words i
 
 /-- The acceptable outputs of `i`: the candidate relation `ByText` minimises
 over.  It has the type of a specification and is not one. -/
 abbrev Acceptable : Spec Char := Acceptable.Fields M
 
-/-- The conditions `N1` to `N4`: an acceptable output with fewest lines among
-the acceptable outputs. -/
+/-- An acceptable output with fewest lines among the acceptable outputs. -/
 structure ByText.Fields (i o : Text) : Prop extends Acceptable.Fields M i o where
-  /-- `N4`: no acceptable output has fewer lines. -/
+  /-- No acceptable output has fewer lines. -/
   fewestLines : ∀ o', Acceptable M i o' → o.count newline ≤ o'.count newline
 
 /-- **The specification on texts.** -/

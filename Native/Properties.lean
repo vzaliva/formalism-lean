@@ -21,7 +21,7 @@ Meyer's specifications.  `Native.Comparison` does the comparing.
   `byText_iff_minSet` puts `ByText` in the shape of Meyer's specifications,
   and decidability passes from `ByLayout` to `ByText` through the equivalence.
 * **The length of an output**, `length_of_byLayout`: the book's `T1` sharpened to
-  an equation, a consequence of `N1` to `N3`.
+  an equation, a consequence of the three conditions of `Acceptable`.
 
 The machinery is a handful of equations for `render` on a *cut* of a list of
 words, a list of lines `ls` with `[] ∉ ls` and `ls.flatten = ws`, and their
@@ -591,9 +591,9 @@ theorem byLayout_of_forall_isBreak {M : ℕ} {i : Text} (h : ∀ c ∈ i, IsBrea
 /-! ## The two formulations agree
 
 Each output of `ByLayout` is `render ls` for a layout `ls` of the words of the
-input, and `N1` to `N3` are read off that.  `N4` and the converse need the other
-direction: an acceptable text is `render (parse o)` for a layout `parse o`, and
-its new lines count its lines. -/
+input, and the three conditions of `Acceptable` are read off that.  `fewestLines`
+and the converse need the other direction: an acceptable text is
+`render (parse o)` for a layout `parse o`, and its new lines count its lines. -/
 
 /-- The lines of a printed layout are non-empty and fit. -/
 private lemma linesFit_render {M : ℕ} {i : Text} {ls : List Line} (hl : Layout M (words i) ls) :
@@ -622,7 +622,7 @@ private lemma singleBlanks_render {M : ℕ} {i : Text} {ls : List Line}
     fun w hw' hb => (hw l₀ hl₀ w hw').2 blank hb (Or.inl rfl)]
   exact fun h => (hw l₀ hl₀ [] h).1 rfl
 
-/-- **A printed layout is acceptable**: `N1` to `N3` hold of `render ls` for
+/-- **A printed layout is acceptable**: the three conditions hold of `render ls` for
 every layout `ls` of the words of `i`, minimal or not. -/
 private lemma Layout.acceptable {M : ℕ} {i : Text} {ls : List Line}
     (hl : Layout M (words i) ls) : Acceptable M i (render ls) :=
@@ -739,9 +739,9 @@ example : ByText 5 "  ABC  D  EFG".toList "ABC D\nEFG".toList ∧
 
 /-- **The length of an output**: exactly the letters of the input plus one
 separator per gap between words.  This is the book's `T1` sharpened to an
-equation.  It is not a field of `Acceptable` because it follows from `N1` to
-`N3` -- an acceptable text is a printed layout, `Acceptable.Fields.layout_parse`, and
-`length_render_cut` measures one -- and so detects nothing they do not. -/
+equation.  It is not a field of `Acceptable` because it follows from the three
+that are -- an acceptable text is a printed layout, `Acceptable.Fields.layout_parse`,
+and `length_render_cut` measures one -- and so detects nothing they do not. -/
 theorem length_of_byLayout {M : ℕ} {i o : Text} (h : ByLayout M i o) (hw : words i ≠ []) :
     o.length + 1 = ((words i).map List.length).sum + (words i).length := by
   obtain ⟨ls, hl, -, rfl⟩ := h
