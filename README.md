@@ -252,9 +252,9 @@ alone, `ByText`. The two share a single definition, the words of the input, and
 def words (t : Text) : List Word := (t.splitOnP (IsBreak ·)).filter (· ≠ [])
 ```
 
-A `Word` is a `Text`, a `Line` is a `List Word`, and `words` is the book's `WORDS`
-character for character. It is the only place either specification looks at a
-character. Both specifications have the type `Spec Char`, where `Spec α := Text α → Text α → Prop`
+A `Word` is a `Text`, a `Line` is a `List Word`, and `words` is `Meyer.Book.words`, the
+transcription's definition of the `WORDS` the book leaves to exercise 9-E.6. It is the
+only place either specification looks at a character. Both specifications have the type `Spec Char`, where `Spec α := Text α → Text α → Prop`
 in `Meyer/Common.lean` is a relation between input and output — which is what the 1985
 paper says a specification is. The native specification is concrete over `Char`, an
 alphabet of both of Meyer's kinds; his are abstract, see [Alphabets](#alphabets).

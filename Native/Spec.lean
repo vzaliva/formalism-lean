@@ -46,9 +46,9 @@ transcriptions share, and are taken from `Meyer.Common` so that the
 specifications can be compared.  Meyer's are stated over an abstract alphabet;
 this one is concrete, over Lean's `Char`, which is an alphabet of both of his
 kinds.  The comparison in `Native.Comparison` therefore instantiates the book's
-specification at `Char`.  `words` is the book's definition, exercise
-9-E.6, character for character: split at the separators and discard the empty
-pieces.  Everything else is new.
+specification at `Char`.  `words` is `Meyer.Book.words`, the definition the
+transcription gives the book's `WORDS`, which the book leaves to exercise 9-E.6:
+split at the separators and discard the empty pieces.  Everything else is new.
 
 Where the two Meyer specifications differ, over separators at the two ends of
 the text, this one sides with the book: a leading or trailing break is not a
