@@ -348,9 +348,10 @@ theorem byLayout_eq_byText (M : ℕ) : ByLayout M = ByText M
 ```
 
 Each has what the other lacks. `ByLayout` is decidable and comes with an induction on
-layouts; `ByText` is readable and quantifies over all texts, so it is not decidable on
-its face — it becomes so through the equivalence, the layout specification doing work
-for the text one. The `←` direction is where Lean's library does the work:
+layouts; `ByText` is a checklist, each condition asked of a candidate output on its own,
+but it quantifies over all texts, so it is not decidable on its face — it becomes so
+through the equivalence, the layout specification doing work for the text one. The `←`
+direction is where Lean's library does the work:
 `List.splitOn` reads an acceptable text back into a layout, and `List.intercalate_splitOn`
 says that printing that layout gives the text back.
 
