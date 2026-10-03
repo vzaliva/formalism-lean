@@ -1,0 +1,38 @@
+# Naur's final program for the Line Editing Problem.  Peter Naur,
+# "Programming by Action Clusters", BIT 9(3):250-258, 1969, p. 256,
+# transcribed from the page image.  Naur draws a line around each action
+# cluster; the lines are dropped here.  Everything else is his: the Algol 60
+# keywords, the label, the goto, the undefined construct Alarm, and the use
+# of LF where the prose of the paper says NL.
+#
+# Notation:
+#   v        Naur's logical "or" (an inverted wedge in print)
+#   <=       printed as a less-than-or-equal sign
+#   buffer   "integer array buffer[1: some upper limit]", one-based,
+#            holding the current word
+#   bufpos   number of characters currently held in the buffer
+#   fill     number of characters output since the last new line
+#   cw       the character most recently read
+#   Alarm    not defined anywhere in the paper; called when a character
+#            arrives for a buffer that already holds MAXPOS characters
+#
+# There is no case for the end of the input text: incharacter is simply
+# called again, for ever.
+
+bufpos := 0;
+outcharacter(channel, LF); fill := 0;
+next character:
+  incharacter(channel, cw);
+  if cw = BLANK v cw = LF then
+  begin if fill+1+bufpos <= MAXPOS then
+    begin outcharacter(channel, BLANK); fill := fill+1 end
+    else
+    begin outcharacter(channel, LF); fill := 0 end;
+    for k := 1 step 1 until bufpos do
+      outcharacter(channel, buffer[k]);
+    fill := fill+bufpos; bufpos := 0;
+  end
+  else
+  if bufpos = MAXPOS then Alarm else
+  begin bufpos := bufpos+1; buffer[bufpos] := cw end;
+go to next character;
