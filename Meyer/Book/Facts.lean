@@ -206,8 +206,8 @@ p. 180 contradicts in the same breath: the output "might consist of just the emp
 p. 180 and not with the exercise.  `S2` restricts the input to `P`, the longest
 prefix whose longest word fits within `M`; an all-separator text has longest word
 `0`, so `P` is the whole input and `S2` reduces to `S1` on it.  `T7` then gives the
-empty output.  `S2` is not formalised here, so that last step is a remark rather
-than a theorem. -/
+empty output.  `S2` is formalised in `Meyer.Book.ErrorHandling`, and that last step
+is `Meyer.Book.ErrorHandling.not_forall_goal_ne_nil`. -/
 theorem solutions_of_forall_isSeparator [DecidableEq α] {M : ℕ} {i : Text α}
     (h : ∀ c ∈ i, IsSeparator c) :
     Solutions M i = {[]} := by

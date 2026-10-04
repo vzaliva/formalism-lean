@@ -11,6 +11,7 @@ import Meyer.Book.Recast
 import Meyer.Book.Words
 import Meyer.Book.Facts
 import Meyer.Book.Bug
+import Meyer.Book.ErrorHandling
 import Meyer.Book.Examples
 import Meyer.Comparison
 import Meyer.Comparison.Examples
@@ -26,7 +27,8 @@ the results each text states about its own: his two claims from 1985, and `T1` t
   assumptions as typeclasses; `Meyer.Char` instantiates both at `Char`.
 * `Meyer.Paper` -- *On Formalism in Specifications*, IEEE Software 2(1), 1985.
 * `Meyer.Book` -- *Handbook of Requirements and Business Analysis*, Springer,
-  2022, chapter 9 section 9.5.
+  2022, chapter 9 section 9.5, with its error-handling variant `S2` in
+  `Meyer.Book.ErrorHandling`.
 * `Meyer.Comparison` -- the two are not the same relation.
 
 The transcriptions are stated over an abstract alphabet and never mention

@@ -55,7 +55,8 @@ report of what we looked for, not a systematic review.
 | `Meyer/Book/Words.lean` | words and breaks (exercise 9-E.6) |
 | `Meyer/Book/Facts.lean` | the chapter's eight claims `T1` to `T8`, proved |
 | `Meyer/Book/Bug.lean` | a defect in the book, proved |
-| `Meyer/Book/Examples.lean` | `␣␣ABC␣␣D␣␣EFG` at `Char`, with its two solutions and the defect's third |
+| `Meyer/Book/ErrorHandling.lean` | the error-handling variant `S2` (§9.5.8) and exercise 9-E.13 |
+| `Meyer/Book/Examples.lean` | `␣␣ABC␣␣D␣␣EFG` at `Char`, with its two solutions and the defect's third; `S2` on an oversize word |
 | `Meyer/Comparison.lean` | the two specifications are not the same relation |
 | `Meyer/Comparison/Examples.lean` | `␣AB` at `Char`: the empty first line |
 | `Meyer/Char.lean` | `Char` as an alphabet of both kinds |
@@ -148,6 +149,26 @@ the properties `T3` and `T4` need. Its alternating-decomposition theorem is not 
 `T5` is proved for any alphabet with a letter `c` and two distinct separators, on the
 input `c cc c` at `M = 4`; Meyer's own witness, `␣␣ABC␣␣D␣␣EFG` at `M = 5`, is the `Char`
 example beside it.
+
+Also proved: what the chapter claims of `S2`, the variant of §9.5.8 that drops the
+precondition `maxword (in) ≤ M`. Meyer reads Goodenough and Gerhart's "up to the point of
+an error" as keeping "the first `M` letters" of the first oversize word, and builds `S2`
+to do so: it formats `P`, the longest prefix of the input with no word longer than `M`,
+in place of the whole input. He says that `P` has at most one element and that `S2`
+always has a solution, and sets both as exercise 9-E.13. Both are proved in
+`Meyer/Book/ErrorHandling.lean` (`Book.ErrorHandling.P_subsingleton`,
+`Book.ErrorHandling.solutions_nonempty`), through one observation: `S2` at `in` is `S1`
+at the one element of `P`, so `T8` applies there.
+
+The exercise words its second half differently: "the resulting output text `out` cannot
+be empty". p. 180, which points to the exercise, says the set of solutions is never empty,
+"although it might consist of just the empty text as its single element". What is proved
+is p. 180's reading. For every `M` some input has the empty text as its output, the
+one-character input `[space]` for one (`Book.ErrorHandling.not_forall_goal_ne_nil`),
+just as `T7` gives for `S1`. With `M ≥ 1`, which the chapter's English restatement of
+`S2` asks for, these are exactly the inputs with no letter. At `M = 0` every output is
+empty. `Meyer/Book/Examples.lean` runs `S2` on `AB␣CDEFG␣H` at `M = 3`, which `S1`
+rejects and `S2` formats as `AB / CDE`.
 
 ### What formalising it turned up
 
@@ -460,7 +481,7 @@ lake exe cache get   # mathlib binaries
 lake build
 ```
 
-A clean build produces no warnings and no `sorry`s. To check what the thirty
+A clean build produces no warnings and no `sorry`s. To check what the thirty-three
 theorems depend on:
 
 ```sh
@@ -489,6 +510,11 @@ Recorded in full in each module's docstring. In brief:
   is `Meyer/Paper/Bug.lean`, whose docstring says so.
 - The book's `M3` is transcribed as its prose describes it, not as its formula reads;
   the formula is the subject of `Meyer/Book/Bug.lean`.
+- In `S2`, Meyer writes `P` as a minimisation of `–v.count` and offers "a maximization
+  operator" as the alternative. The measures here are natural numbers, so `P` is
+  `MAX_SET` of the length. `Prefixes ({in})` and `recast (P)` are read as images of sets,
+  as p. 175 defines `r (A)`, and the braces p. 179 puts around both formulas as
+  delimiters.
 - `WORDS` and `breaks`, which the book leaves to exercise 9-E.6, are taken to be the
   *nonempty* maximal runs. That is the convention `T4` needs. The exercise's uniqueness
   claim about the alternating decomposition is not proved.

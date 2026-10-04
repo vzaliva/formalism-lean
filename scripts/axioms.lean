@@ -33,6 +33,9 @@ it.  Anything else means an axiom has crept in.
 #print axioms Meyer.Book.solutions_of_forall_isSeparator
 #print axioms Meyer.Book.feasibility
 #print axioms Meyer.Book.goal_not_functional
+#print axioms Meyer.Book.ErrorHandling.P_subsingleton
+#print axioms Meyer.Book.ErrorHandling.solutions_nonempty
+#print axioms Meyer.Book.ErrorHandling.not_forall_goal_ne_nil
 #print axioms Meyer.Book.recast1_cycle
 #print axioms Meyer.Book.length_le_of_recast
 #print axioms Meyer.Book.words_eq_of_recast
