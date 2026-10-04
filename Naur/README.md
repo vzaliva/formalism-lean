@@ -7,9 +7,11 @@ Naur's own illustrations against Naur's own program.
 | File | Contents |
 |---|---|
 | `naur-1969-final-program.txt` | the final program from p. 256 of "Programming by Action Clusters", transcribed from the page image in Naur's Algol 60 notation, with his boxes around the clusters dropped |
-| `naur.py` | a literal Python rendering of it, statement for statement, with a harness that feeds it a string and stops it when the input runs out |
+| `naur.py` | a literal Python rendering of it, statement for statement, with a harness that feeds it a string and stops it when the input runs out. An optional `trace` hook, not Naur's, fires at the cluster boundaries |
+| `naur_prescriptions.py` | Naur's seven "prescriptions" (pp. 256–257) as run-time checks, evaluated through that hook at every cluster boundary and at the top of the loop, which is where he says they hold |
 
-Run `python3 Naur/naur.py`. Nothing is imported and nothing is written.
+Run `python3 Naur/naur.py` and `python3 Naur/naur_prescriptions.py`. Nothing is
+imported from outside and nothing is written.
 
 ## What the run shows
 
@@ -44,3 +46,31 @@ On the inputs the statement does not speak to, the program:
 Every one of Goodenough and Gerhart's seven errors is visible in the output,
 N7 included, since the rendering follows the program in calling the new-line
 character `LF` where the paper's prose says `NL`.
+
+## The prescriptions
+
+Naur says (p. 257) that each of his seven prescriptions "could be written in a
+General Snapshot anywhere in the program except between two actions of a
+cluster". Checked at exactly those points, on the inputs above:
+
+- (1), (2), (3), (5), (6) and (7) hold at every check point on every input.
+- (4), "the input character preceding the one held in `buffer[1]` was a
+  BLANK or NL. This has not been output", fails in two ways.
+  - For the first word of any text that does not begin with a separator,
+    there is no preceding character. This is the false assertion Goodenough
+    and Gerhart name as the cause of N3: "false for the first word and is
+    never disproven". It fails from Cluster 2 onwards and is still false at
+    the top of the loop.
+  - For every word, between Cluster 5 (or Cluster 4) and Cluster 3 inside
+    Action 1: the program has just written the BLANK or LF that stands for
+    the separator, and the word is still in the buffer. That point is
+    between two clusters, not inside one, so by his own statement the
+    prescription should hold there. It does not. The program is not wrong
+    at that point, the prescription is stated too loosely for it.
+- When the text does begin with a separator (the "leading blank" and
+  "leading LF" cases), (4) holds for the first word, and the output is the
+  one G&G describe as N6: two blanks before it. A prescription that holds
+  does not make the output right.
+
+How each prescription is read for the check is in the docstring of
+`naur_prescriptions.py`.

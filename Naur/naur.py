@@ -29,37 +29,52 @@ class EndOfText(Exception):
     """Not Naur's.  Raised by `incharacter` when the input is exhausted."""
 
 
-def naur(incharacter, outcharacter, MAXPOS):
+def naur(incharacter, outcharacter, MAXPOS, trace=None):
     """Naur's program, statement for statement.
 
     `incharacter()` returns the next input character or raises `EndOfText`.
     `outcharacter(c)` consumes one output character.
+
+    `trace`, if given, is not Naur's.  It is called at the points where he
+    says his prescriptions hold, "anywhere in the program except between two
+    actions of a cluster": after each cluster, and at the top of the loop.
+    It receives a label, bufpos, fill (None before fill is first assigned)
+    and the buffer's current contents.  naur_prescriptions.py uses it.
     """
     buffer = [None] * (MAXPOS + 1)       # integer array buffer[1: some upper limit]
+    t = (lambda label, bufpos, fill: trace(label, bufpos, fill, buffer[1:bufpos + 1])) \
+        if trace else (lambda *_: None)  # hook, not Naur's
 
     bufpos = 0                           # bufpos := 0;
+    t("C1", bufpos, None)                # hook
     outcharacter(LF)                     # outcharacter(channel, LF); fill := 0;
     fill = 0
+    t("C4", bufpos, fill)                # hook
 
     while True:                          # next character:
+        t("top", bufpos, fill)           # hook
         cw = incharacter()               #   incharacter(channel, cw);
         if cw == BLANK or cw == LF:      #   if cw = BLANK v cw = LF then
             if fill + 1 + bufpos <= MAXPOS:   # begin if fill+1+bufpos <= MAXPOS then
                 outcharacter(BLANK)      #     begin outcharacter(channel, BLANK); fill := fill+1 end
                 fill = fill + 1
+                t("C5", bufpos, fill)    # hook
             else:                        #     else
                 outcharacter(LF)         #     begin outcharacter(channel, LF); fill := 0 end;
                 fill = 0
+                t("C4", bufpos, fill)    # hook
             for k in range(1, bufpos + 1):    # for k := 1 step 1 until bufpos do
                 outcharacter(buffer[k])  #       outcharacter(channel, buffer[k]);
             fill = fill + bufpos         #     fill := fill+bufpos; bufpos := 0;
             bufpos = 0                   #   end
+            t("C3", bufpos, fill)        # hook
         else:                            #   else
             if bufpos == MAXPOS:         #   if bufpos = MAXPOS then Alarm else
                 raise Alarm()
             else:
                 bufpos = bufpos + 1      #   begin bufpos := bufpos+1; buffer[bufpos] := cw end;
                 buffer[bufpos] = cw
+                t("C2", bufpos, fill)    # hook
         # go to next character;
 
 

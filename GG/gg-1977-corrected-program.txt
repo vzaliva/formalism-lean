@@ -1,0 +1,64 @@
+# Goodenough and Gerhart's corrected version of Naur's line-editing program.
+# John B. Goodenough and Susan L. Gerhart, "Toward a Theory of Test Data
+# Selection", IEEE Trans. Software Eng. SE-1(2):156-173, 1975, and the revised
+# version, "Toward a Theory of Testing: Data Selection Criteria", in R. T. Yeh
+# (ed.), Current Trends in Programming Methodology, vol. 2, Prentice-Hall, 1977,
+# ch. 3.  Transcribed from the page image of the 1977 chapter, Figure 3.3 on
+# p. 57.  The same program is Figure 3 on p. 496 of the 1975 paper (the
+# 1975 corrections text is on p. 497).  Line numbers are dropped here, as are
+# the underlinings of the keywords.  The 27 lines of the 1977 figure are
+# kept one to one.
+#
+# The 1975 figure has two differences from the 1977 one, both of begin/end
+# punctuation.  Line 7 reads "then" alone, with no "begin", and line 20 has one
+# "end" where the 1977 figure has two, so in 1975 the "else" of line 21 would
+# attach to "if bufpos # 0" of line 8.  Line 23 of the 1975 figure also has a
+# semicolon after "Alarm := true", before the "else".  The 1977 figure is
+# transcribed below because it is the one in which the begin/end brackets
+# match the indentation.  Every statement, condition and constant is the same
+# in both editions.
+#
+# Notation:
+#   v        logical "or" (an inverted wedge in print)
+#   ^        logical "and" (a wedge in print)
+#   !=       printed as a slashed equals sign (not equal)
+#   <        printed as less-than (Naur's version had <=)
+#   buffer   one-based, holding the current word
+#   bufpos   number of characters currently held in the buffer
+#   fill     number of characters output since the last new line
+#   CW       the character most recently read
+#   BL       the blank, NL the new line (Naur's program had BLANK and LF)
+#   ET       the end-of-text character, exactly one per input stream, last
+#   Alarm    now a Boolean variable, initially false, set to true when a
+#            character arrives for a buffer that already holds MAXPOS characters
+#
+# The repeat ... until replaces Naur's endless go to loop.  Naur's
+# outcharacter(channel, LF) before the loop is gone.
+
+Alarm := false;
+bufpos := 0;
+fill := 0;
+repeat
+  incharacter(CW);
+  if CW = BL v CW = NL v CW = ET
+  then begin
+    if bufpos != 0
+    then begin
+      if fill + bufpos < MAXPOS ^ fill != 0
+      then begin
+        outcharacter(BL);
+        fill := fill + 1 end
+      else begin
+        outcharacter(NL);
+        fill := 0 end;
+      for k := 1 step 1 until bufpos do
+        outcharacter(buffer[k]);
+      fill := fill + bufpos;
+      bufpos := 0 end end
+  else
+    if bufpos = MAXPOS
+    then Alarm := true
+    else begin
+      bufpos := bufpos + 1;
+      buffer[bufpos] := CW end
+until Alarm v CW = ET;
