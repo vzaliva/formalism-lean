@@ -41,7 +41,7 @@ character satisfying `p`.  `words` is `runsOf` at "is a separator" and `breaks`
 is `runsOf` at "is a letter". -/
 
 /-- The non-empty maximal stretches of `t` on which `p` fails. -/
-private noncomputable def runsOf (p : α → Bool) (t : Text α) : List (Text α) :=
+private def runsOf (p : α → Bool) (t : Text α) : List (Text α) :=
   (t.splitOnP p).filter fun w => !w.isEmpty
 
 @[simp] private lemma runsOf_nil (p : α → Bool) : runsOf p [] = [] := by

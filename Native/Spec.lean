@@ -56,10 +56,11 @@ word and leaves no trace in the output.  `Native.Comparison` proves the
 relation equal to the book's; that it then differs from the paper's is
 `Meyer.Comparison`.
 
-The definitions are `noncomputable` only because this toolchain's
-`List.splitOnP` and `List.intercalate` are; the kernel reduces both, and
-`Native.Properties` supplies `Decidable` instances for `ByLayout` and `ByText` so
-that concrete claims are settled by `decide`.
+The definitions are computable. `List.splitOnP` and `List.intercalate` are
+declared `noncomputable` in this toolchain but carry `@[csimp]` implementations,
+so `words`, `renderLine` and `render` compile and `#eval` runs them.  The kernel
+reduces them as well, and `Native.Properties` supplies `Decidable` instances for
+`ByLayout` and `ByText` so that concrete claims are settled by `decide`.
 -/
 
 namespace Native
@@ -70,8 +71,6 @@ open Meyer
 which is an alphabet of both of Meyer's kinds (`Meyer.Alphabet`,
 `Meyer.Lettered`). -/
 abbrev Text := Meyer.Text Char
-
-noncomputable section
 
 /-! ## Words
 
@@ -161,7 +160,5 @@ structure ByText.Fields (i o : Text) : Prop extends Acceptable.Fields M i o wher
 
 /-- **The specification on texts.** -/
 abbrev ByText : Spec Char := ByText.Fields M
-
-end
 
 end Native

@@ -193,11 +193,11 @@ transformations only affect the number of breaks except by possibly removing a
 heading break, a trailing break or both" -- is about the convention used here. -/
 
 /-- `WORDS (t)`: the non-empty maximal runs of letters, in order. -/
-noncomputable def words (t : Text α) : List (Text α) :=
+def words (t : Text α) : List (Text α) :=
   (t.splitOnP fun c => decide (IsSeparator c)).filter fun w => !w.isEmpty
 
 /-- `breaks (t)`: the non-empty maximal runs of separators, in order. -/
-noncomputable def breaks (t : Text α) : List (Text α) :=
+def breaks (t : Text α) : List (Text α) :=
   (t.splitOnP fun c => decide (IsLetter c)).filter fun b => !b.isEmpty
 
 /-! ## The specification

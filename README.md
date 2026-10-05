@@ -408,10 +408,10 @@ bound of exercise 9-E.6. On a printed cut, `maxline ≤ M` says every line fits 
 one.
 
 Where the two Meyer specifications differ, over separators at the ends of the text, the
-new one sides with the book: a leading or trailing break leaves no trace. One cost is
-worth naming: `List.splitOnP` and `List.intercalate` are `noncomputable` reference
-models in this toolchain, so the definitions carry that marker. The kernel reduces
-both, which is what `decide` needs, but `#eval` does not.
+new one sides with the book: a leading or trailing break leaves no trace. The
+specification is also executable. `List.splitOnP` and `List.intercalate` are declared
+`noncomputable` in this toolchain but carry `@[csimp]` implementations, so `#eval` runs
+`words` and `render`, and the kernel reduces them, which is what `decide` needs.
 
 ## Alphabets
 

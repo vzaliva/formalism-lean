@@ -35,8 +35,6 @@ namespace Native
 
 open Meyer
 
-noncomputable section
-
 /-! ## Words -/
 
 @[simp] private lemma words_nil : words [] = [] := by simp [words, List.splitOnP_nil]
@@ -747,7 +745,5 @@ theorem length_of_byLayout {M : ℕ} {i o : Text} (h : ByLayout M i o) (hw : wor
   obtain ⟨ls, hl, -, rfl⟩ := h
   rw [← List.length_flatten]
   exact length_render_cut hw hl.nonempty hl.flatten
-
-end
 
 end Native
