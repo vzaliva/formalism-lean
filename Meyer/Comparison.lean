@@ -33,21 +33,26 @@ same divergence on the smallest possible input: `specifications_differ` shows
 that for the one-character text `[space]` at line limit one each specification's
 output is rejected by the other -- the paper keeps the space, the book deletes it
 (`T7`) -- and `paper_ne_book` states it as an inequality of relations.  Three
-natural strengthenings are *not* proved, and are recorded as remarks:
+natural strengthenings go further:
 
 * that each specification's output for that input is unique;
-* that the disagreement is confined to the separators at the two ends, so that
-  the two relations coincide on inputs with neither;
 * that the disagreement extends to an input of separators only: the book
   yields the empty text, `Meyer.Book.solutions_of_forall_isSeparator`, while the
   1985 specification yields a single space, because its `COMPACTED` again keeps
   one break character.  At `MAXPOS = 0` a space is a line one character long and
-  is excluded, and the paper's output for `[space]` is `[new_line]` instead.
+  is excluded, and the paper's output for `[space]` is `[new_line]` instead;
+* that the disagreement is confined to the separators at the two ends, so that
+  the two relations coincide on inputs with neither.
 
-The third is what `specifications_differ` proves, for `MAXPOS = 1`.  It settles
-against the 1985 specification a question Meyer raises as `T7` and leaves open
-for the natural-language originals: "the original specification could be
-construed, although not conclusively, to yield a one-space output".
+The first two are proved.  For the book both are `T7`,
+`Meyer.Book.solutions_of_forall_isSeparator`; for the paper both are
+`Meyer.Paper.goal_of_forall_isBreak`, in `Meyer.Paper.Check`, which this module
+does not import: a non-empty input of separators only has exactly one 1985
+output, a single blank if `MAXPOS ≥ 1` and a single new line if `MAXPOS = 0`.
+This settles against the 1985 specification a question Meyer raises as `T7` and
+leaves open for the natural-language originals: "the original specification
+could be construed, although not conclusively, to yield a one-space output".
+The third is not proved.
 -/
 
 namespace Meyer.Comparison
@@ -116,8 +121,8 @@ specifications produces an output that the other rejects: the 1985 one keeps
 the space, the 2022 one deletes it.
 
 One separating example is enough to show the relations differ, which is all this
-states.  Where they differ, and whether they agree elsewhere, is discussed in the
-module header and is not proved. -/
+states.  Where else they differ, and whether they agree elsewhere, is discussed
+in the module header. -/
 theorem specifications_differ :
     ∃ (M : ℕ) (i o₁ o₂ : Text α),
       Paper.Goal M i o₁ ∧ ¬ Book.Goal M i o₁ ∧

@@ -50,6 +50,8 @@ report of what we looked for, not a systematic review.
 | `Meyer/Paper/Facts.lean` | Meyer's two claims, proved |
 | `Meyer/Paper/Bug.lean` | a defect in the paper, proved |
 | `Meyer/Paper/Examples.lean` | `WHO WHAT WHEN` at `Char`; the letterless alphabet `Bool` |
+| `Meyer/Paper/Check.lean` | a decision procedure for `goal`: `check`, proved to decide it, and the greedy fill that supplies the fewest new lines; the 1985 answer for an input of separators only |
+| `Meyer/Paper/Check/Examples.lean` | `goal` settled by `decide`: `WHO WHAT WHEN`, Naur's example sentence at `MAXPOS` 15 and 25, separators at the ends |
 | `Meyer/Book/Spec.lean` | the 2022 specification: `recast1`, `recast`, `maxword`, `maxline`, the `mu` operator, `S1`. Definitions only |
 | `Meyer/Book/Recast.lean` | properties of the recasting relation |
 | `Meyer/Book/Words.lean` | words and breaks (exercise 9-E.6) |
@@ -126,6 +128,35 @@ sentence by sentence.
 **3. Nothing else was wrong.** Under the corrected, strictly increasing reading of
 "subsequence", both of Meyer's claims are true and the rest of the specification
 transcribes without incident.
+
+### Deciding it
+
+`goal` is a pipeline of set-builder relations — a longest subsequence, any exchange of
+breaks, a supremum over runs, a minimisation — and none of it can be evaluated as
+written. `Meyer/Paper/Check.lean` gives a checker and proves it exact, over any alphabet
+with decidable equality:
+
+```lean
+theorem check_eq_true_iff (i o : Text α) : check MAXPOS i o = true ↔ Goal MAXPOS i o
+```
+
+so `goal` is decidable. Three characterisations make it work, one per stage.
+`COMPACTED (i)` is determined up to which break character each run keeps, so
+`TRANSF (i)` is `TRIMMED (compact i)`, where `compact` cuts each run of breaks down to
+its first character (`transf_eq_trimmed`). `max_line_length` is a single pass
+(`maxLineLength_eq`). And the fewest new lines are those of the greedy fill, which
+makes each break a blank if the next word still fits on the current line and a new
+line otherwise (`goal_iff`). The checker runs in linear time, and `decide` settles
+Naur's own example sentence, 25 words and 138 characters, at `MAXPOS` 15 and 25 in
+well under a second a case, checked by the kernel (`Meyer/Paper/Check/Examples.lean`).
+The decidability of `Native.ByLayout` enumerates the cuts of the list of words and
+would not get that far.
+
+The greedy fill is a word wrap, and `goal_fill` says it is correct: on the domain of
+`goal` it produces an acceptable output. It is not the only one. `goal` asks for the
+fewest lines, not for each line to be filled before the next is begun, and at both
+limits the examples include a layout with a word moved down a line and no more lines,
+which `goal` accepts.
 
 ## The 2022 book
 
@@ -255,8 +286,9 @@ The same divergence bears on a question Meyer raises as `T7` and leaves open for
 natural-language originals. For an input of separators only the book yields the empty
 text, which is `Meyer.Book.solutions_of_forall_isSeparator`; the 1985 specification
 yields a single space, provided `MAXPOS ≥ 1`. At `MAXPOS = 0` a space is itself a line
-one character long, so the paper's output is a new line instead. Neither half of the
-1985 answer is mechanised.
+one character long, so the paper's output is a new line instead. Both halves are
+`Meyer.Paper.goal_of_forall_isBreak`, on every alphabet: a non-empty input of
+separators only has exactly that one output.
 
 ## A third specification, Lean-native
 
@@ -481,7 +513,7 @@ lake exe cache get   # mathlib binaries
 lake build
 ```
 
-A clean build produces no warnings and no `sorry`s. To check what the thirty-three
+A clean build produces no warnings and no `sorry`s. To check what the thirty-eight
 theorems depend on:
 
 ```sh

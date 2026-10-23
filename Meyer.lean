@@ -6,6 +6,8 @@ import Meyer.Paper.Retention
 import Meyer.Paper.Facts
 import Meyer.Paper.Bug
 import Meyer.Paper.Examples
+import Meyer.Paper.Check
+import Meyer.Paper.Check.Examples
 import Meyer.Book.Spec
 import Meyer.Book.Recast
 import Meyer.Book.Words
@@ -25,7 +27,8 @@ the results each text states about its own: his two claims from 1985, and `T1` t
 
 * `Meyer.Common` -- the vocabulary the two share, and their two alphabet
   assumptions as typeclasses; `Meyer.Char` instantiates both at `Char`.
-* `Meyer.Paper` -- *On Formalism in Specifications*, IEEE Software 2(1), 1985.
+* `Meyer.Paper` -- *On Formalism in Specifications*, IEEE Software 2(1), 1985,
+  with a decision procedure for its `goal` in `Meyer.Paper.Check`.
 * `Meyer.Book` -- *Handbook of Requirements and Business Analysis*, Springer,
   2022, chapter 9 section 9.5, with its error-handling variant `S2` in
   `Meyer.Book.ErrorHandling`.

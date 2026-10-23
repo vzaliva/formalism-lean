@@ -23,6 +23,11 @@ it.  Anything else means an axiom has crept in.
 #print axioms Meyer.Paper.trimmed_nonempty_iff
 #print axioms Meyer.Paper.domGoal_eq_noOversizeWord
 #print axioms Meyer.Paper.sameWords_of_mem_compacted
+#print axioms Meyer.Paper.transf_eq_trimmed
+#print axioms Meyer.Paper.goal_iff
+#print axioms Meyer.Paper.check_eq_true_iff
+#print axioms Meyer.Paper.goal_fill
+#print axioms Meyer.Paper.goal_of_forall_isBreak
 #print axioms Meyer.Book.Bug.newLines_le_one
 #print axioms Meyer.Book.Bug.solutions_subset
 #print axioms Meyer.Book.Bug.goal_unfilled

@@ -9,8 +9,11 @@ package «formalism-lean» where
 
 -- Bertrand Meyer's two formal specifications of the Naur / Goodenough-Gerhart
 -- text-formatting problem: the 1985 IEEE Software paper and chapter 9 of the
--- 2022 Handbook of Requirements and Business Analysis. Specifications only;
--- there is no implementation of word wrap here, and none is wanted.
+-- 2022 Handbook of Requirements and Business Analysis. Specifications, not
+-- programs. The one executable part is `Meyer.Paper.Check`, which decides the
+-- 1985 specification; the greedy fill it uses to find the fewest lines is a
+-- word wrap, proved correct, and is there for the decision procedure, not as a
+-- program in its own right.
 @[default_target]
 lean_lib Meyer where
   globs := #[.andSubmodules `Meyer]
