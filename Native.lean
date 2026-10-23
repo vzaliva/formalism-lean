@@ -1,5 +1,6 @@
 import Native.Spec
 import Native.Properties
+import Native.Check
 import Native.Comparison
 
 /-!
@@ -13,5 +14,7 @@ transcriptions of Meyer's in `Meyer`.
 * `Native.Properties` -- what is proved on the native side: decidability,
   feasibility, nondeterminism, and that the two formulations are the same
   relation.
-* `Native.Comparison` -- it is the same relation as the book's.
+* `Native.Check` -- a linear-time decision procedure for it.
+* `Native.Comparison` -- it is the same relation as the book's, which
+  `Native.Check` therefore decides as well.
 -/

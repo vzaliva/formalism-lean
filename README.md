@@ -65,7 +65,8 @@ report of what we looked for, not a systematic review.
 | `Native.lean` | umbrella for the third specification |
 | `Native/Spec.lean` | the Lean-native specification twice over: `ByLayout` and `ByText`. Definitions only |
 | `Native/Properties.lean` | decidability, feasibility, nondeterminism, and `ByLayout M = ByText M` |
-| `Native/Comparison.lean` | `ByLayout M = Meyer.Book.Goal M` |
+| `Native/Check.lean` | a decision procedure for `ByLayout`: `check`, proved to decide it, and the greedy fill that supplies the fewest lines |
+| `Native/Comparison.lean` | `ByLayout M = Meyer.Book.Goal M`, and so `check` decides `S1` as well |
 
 ## The 1985 paper
 
@@ -149,8 +150,9 @@ makes each break a blank if the next word still fits on the current line and a n
 line otherwise (`goal_iff`). The checker runs in linear time, and `decide` settles
 Naur's own example sentence, 25 words and 138 characters, at `MAXPOS` 15 and 25 in
 well under a second a case, checked by the kernel (`Meyer/Paper/Check/Examples.lean`).
-The decidability of `Native.ByLayout` enumerates the cuts of the list of words and
-would not get that far.
+The decidability `Native/Properties.lean` proves for `Native.ByLayout` enumerates the
+cuts of the list of words and would not get that far; `Native/Check.lean` gives that
+specification a linear checker as well.
 
 The greedy fill is a word wrap, and `goal_fill` says it is correct: on the domain of
 `goal` it produces an acceptable output. It is not the only one. `goal` asks for the
@@ -340,8 +342,12 @@ What the change of representation buys, against Meyer's two:
   `MAX_SET` in the paper's box "The reasoning behind formal specifications".
 - **Decidability.** `Native/Properties.lean` proves `ByLayout` decidable, so the worked
   examples, Meyer's `␣␣ABC␣␣D␣␣EFG` at `M = 5` and `WHO WHAT WHEN` at `MAXPOS = 10`,
-  are settled by `decide` rather than by hand. The specification is still a
-  proposition; that it can be evaluated is a theorem about it.
+  are settled by `decide` rather than by hand. That decision enumerates the cuts of
+  the list of words; `Native/Check.lean` adds a checker that runs in linear time
+  (`check_eq_true_iff`), the greedy fill supplying the fewest lines
+  (`byLayout_fill`), and `Native/Comparison.lean` carries it over to the book's `S1`
+  (`check_eq_true_iff_book`). The specification is still a proposition; that it can
+  be evaluated is a theorem about it.
 - **Nothing to retain.** The words are the primitive, so the step the paper asserts in
   passing and `Meyer/Paper/Retention.lean` spends its effort on has no counterpart.
 
@@ -513,7 +519,7 @@ lake exe cache get   # mathlib binaries
 lake build
 ```
 
-A clean build produces no warnings and no `sorry`s. To check what the thirty-eight
+A clean build produces no warnings and no `sorry`s. To check what the forty-one
 theorems depend on:
 
 ```sh

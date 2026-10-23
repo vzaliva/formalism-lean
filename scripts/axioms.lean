@@ -55,3 +55,6 @@ it.  Anything else means an axiom has crept in.
 #print axioms Native.length_of_byLayout
 #print axioms Native.byLayout_eq_byText
 #print axioms Native.byText_iff_minSet
+#print axioms Native.byLayout_fill
+#print axioms Native.check_eq_true_iff
+#print axioms Native.check_eq_true_iff_book

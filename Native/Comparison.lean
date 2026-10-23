@@ -1,4 +1,4 @@
-import Native.Properties
+import Native.Check
 import Meyer.Book.Facts
 
 /-!
@@ -9,7 +9,9 @@ everything the chapter proves about `S1` holds of `ByLayout` as well -- `T1` is
 transferred explicitly as `length_le_of_byLayout`, the inequality
 `Native.length_of_byLayout` sharpens -- and, since `Meyer.Comparison` proves the
 book's relation different from the paper's, `ByLayout` differs from the 1985
-relation too.  That corollary is not restated here.
+relation too.  That corollary is not restated here.  And `Native.check`, which
+decides `ByLayout`, decides `S1` (`check_eq_true_iff_book`), so the book's
+relation has a `Decidable` instance and `decide` settles concrete cases.
 
 The equivalence runs through one observation: a shortest recast of `i` is the
 printed form of a cut of the words of `i`, and every such printed form is a
@@ -173,5 +175,24 @@ theorem length_le_of_byLayout {M : ℕ} {i o : Text} (h : ByLayout M i o) : o.le
   Book.length_le_of_recast
     (Book.mem_minRecasts_iff.1
       (Book.solutions_subset_minRecasts M i ((byLayout_iff_book M i o).1 h))).1
+
+/-! ## Deciding the book's specification -/
+
+/-- **`Native.check` decides the book's `S1`.** -/
+theorem check_eq_true_iff_book (M : ℕ) (i o : Text) :
+    check M i o = true ↔ Meyer.Book.Goal M i o := by
+  rw [check_eq_true_iff, byLayout_eq_book]
+
+/-- The 2022 specification is decidable, by `check`.  The instance reduces in the
+kernel, so `decide` settles concrete instances. -/
+instance (M : ℕ) (i o : Text) : Decidable (Meyer.Book.Goal M i o) :=
+  decidable_of_iff _ (check_eq_true_iff_book M i o)
+
+/-- Meyer's book example, `␣␣ABC␣␣D␣␣EFG` at `M = 5`: his two outputs, and not the
+three-line one the `M3` defect admits. -/
+example : Meyer.Book.Goal 5 "  ABC  D  EFG".toList "ABC D\nEFG".toList ∧
+    Meyer.Book.Goal 5 "  ABC  D  EFG".toList "ABC\nD EFG".toList ∧
+    ¬ Meyer.Book.Goal 5 "  ABC  D  EFG".toList "ABC\nD\nEFG".toList := by
+  decide
 
 end Native
