@@ -27,8 +27,19 @@ his is so by design, and the formal `goal` does relate the input to both.
 
 The paper states no assumption on `CHAR` beyond its two distinguished elements,
 so the claim is made here at `Char` and not for an abstract alphabet: on an
-alphabet without letters the relation is a function, and the claim would
-attribute to the paper an assumption it does not make. -/
+alphabet without letters the relation is a function, and it is one as well
+where `blank` and `new_line` coincide
+(`Meyer.Paper.eq_of_goal_of_blank_eq_newline`), so stating the claim there
+would attribute to the paper assumptions it does not make.
+
+Read the other way, the claim implies the second of them: wherever it holds,
+the two separators differ (`Meyer.Paper.blank_ne_newline_of_not_functional`).
+Neither text says that they differ, but each states something that fails where
+they coincide.  The book's `S1` is a function there too
+(`Meyer.Book.eq_of_goal_of_blank_eq_newline`), so its `T5` implies the same
+(`Meyer.Book.blank_ne_newline_of_not_functional`), and so does its remark that
+`M5` and `M6` define the same function
+(`Meyer.Book.blank_ne_newline_of_maxLine_eq`). -/
 
 section Nondeterminism
 

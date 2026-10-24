@@ -144,6 +144,24 @@ theorem maxLine_eq_maxRun_letter_or_blank (h : (blank : α) ≠ newline) (t : Te
     · exact fun hcn => hl (Or.inr hcn)
     · exact h
 
+/-- The remark forces `space` and `new_line` to be two characters.  Where they
+coincide, the one-character text `[new_line]` has a longest line of length zero
+by `M5` and a run of one letter or space by `M6`. -/
+theorem blank_ne_newline_of_maxLine_eq
+    (h : ∀ t : Text α, maxLine t = maxRun (fun c => IsLetter c ∨ c = blank) t) :
+    (blank : α) ≠ newline := by
+  intro hbn
+  have h₀ : maxLine ([newline] : Text α) ≤ 0 := maxRun_le fun t ht hp => by
+    cases t with
+    | nil => rfl
+    | cons c _ =>
+      exact absurd (List.mem_singleton.1 (ht.subset (List.mem_cons_self ..)))
+        (hp c (List.mem_cons_self ..))
+  have h₁ : ([newline] : Text α).length ≤ maxLine [newline] := h [newline] ▸
+    le_maxRun (List.infix_refl _) fun c hc => Or.inr ((List.mem_singleton.1 hc).trans hbn.symm)
+  simp at h₁
+  omega
+
 /-! ## `T6`: the output has no leading or trailing break
 
 Meyer poses this as one of three questions "unclear from either of the original
@@ -273,7 +291,8 @@ This is the one theorem of the eight that uses the book's assumption
 has the outputs `c cc / c` and `c / cc c`, which differ only in which of the
 two separators stands where; on an alphabet without letters every text is a
 break and `S1` is a function, and on one where the separators coincide the two
-outputs are the same text.
+outputs are the same text and `S1` is a function again
+(`eq_of_goal_of_blank_eq_newline`, below).
 
 Meyer's own witness, `␣␣ABC␣␣D␣␣EFG` at `M = 5` (p. 176), which the
 specification relates both to `ABC␣D / EFG` and to `ABC / D␣EFG`, is a text over
@@ -374,6 +393,106 @@ theorem goal_not_functional [DecidableEq α] (h : (blank : α) ≠ newline) :
     by simp [tOut₁, tOut₂, h]⟩
 
 end Nondeterminism
+
+/-! ## Where the two separators coincide
+
+`T5`'s hypothesis that `space` and `new_line` are two characters is needed for
+more than the witness: where they are one, `S1` is a partial function.  A
+shortest recast has no separator at either end (`T6`) and no two side by side,
+since `[R]` would shorten it; with a single separator character it is therefore
+its words joined by that character, and by `T3` its words are those of the
+input.  Put the other way, with one separator every way of breaking the words
+into lines prints the same text.  That is proved here directly and not through
+`Native.byLayout_eq_book`, which is stated at `Char`, where the two separators
+differ.  The 1985 counterpart is `Meyer.Paper.eq_of_goal_of_blank_eq_newline`. -/
+
+section Coincide
+
+variable [DecidableEq α] [Alphabet α]
+
+omit [DecidableEq α] in
+/-- A shortest recast has no two separators side by side: `[R]` would replace
+them by one. -/
+private lemma not_isSeparator_of_adjacent {i o : Text α} (ho : o ∈ MinRecasts i)
+    {x y : Text α} {a b : α} (h : o = x ++ a :: b :: y) (ha : IsSeparator a) :
+    ¬ IsSeparator b := by
+  intro hb
+  obtain ⟨hor, homin⟩ := mem_minRecasts_iff.1 ho
+  have hab : [a, b] ∈ Break := ⟨List.cons_ne_nil _ _, fun c hc => by
+    rcases List.mem_pair.1 hc with rfl | rfl <;> assumption⟩
+  have hstep : Recast1 o (x ++ [a] ++ y) := by
+    rw [h, show x ++ a :: b :: y = x ++ [a, b] ++ y by simp]
+    exact recast1_replace hab ha
+  have := homin _ (recast_trans hor (recast_of_recast1 hstep))
+  rw [h] at this
+  simp only [List.length_append, List.length_cons, List.length_nil] at this
+  omega
+
+/-- A text splits at its first separator, if it has one. -/
+private lemma exists_eq_append_first {t : Text α} (h : ∃ c ∈ t, IsSeparator c) :
+    ∃ w c r, t = w ++ c :: r ∧ (∀ x ∈ w, IsLetter x) ∧ IsSeparator c := by
+  induction t with
+  | nil => simp at h
+  | cons d t ih =>
+    by_cases hd : IsSeparator d
+    · exact ⟨[], d, t, rfl, by simp, hd⟩
+    · obtain ⟨w, c, r, rfl, hw, hc⟩ := ih (by simpa [hd] using h)
+      exact ⟨d :: w, c, r, rfl, by simpa [IsLetter] using ⟨hd, hw⟩, hc⟩
+
+/-- A text with no separator at either end and none side by side, over an
+alphabet whose one separator is `space`, is its words joined by spaces. -/
+private lemma eq_intercalate_words (hsep : ∀ c : α, IsSeparator c → c = blank)
+    (t : Text α)
+    (h₁ : ∀ c r, t = c :: r → ¬ IsSeparator c)
+    (h₂ : ∀ r c, t = r ++ [c] → ¬ IsSeparator c)
+    (h₃ : ∀ x y a b, t = x ++ a :: b :: y → IsSeparator a → ¬ IsSeparator b) :
+    t = List.intercalate [blank] (words t) := by
+  by_cases hall : ∃ c ∈ t, IsSeparator c
+  · obtain ⟨w, c, r, rfl, hw, hc⟩ := exists_eq_append_first hall
+    have hwne : w ≠ [] := by rintro rfl; exact h₁ c r rfl hc
+    have hrne : r ≠ [] := by rintro rfl; exact h₂ w c rfl hc
+    have ih := eq_intercalate_words hsep r
+      (fun d r' hr => h₃ w r' c d (by rw [hr]) hc)
+      (fun r' d hr => h₂ (w ++ c :: r') d (by simp [hr]))
+      (fun x y a b hr => h₃ (w ++ c :: x) y a b (by simp [hr]))
+    obtain ⟨v, vs, hv⟩ := List.exists_cons_of_ne_nil (l := words r)
+      fun h0 => hrne (ih.trans (by rw [h0]; rfl))
+    rw [words_append_sep hc, words_of_forall_letter hwne hw, hv, List.singleton_append,
+      List.intercalate_cons_cons, ← hv, ← ih, hsep c hc]
+    simp
+  · simp only [not_exists, not_and] at hall
+    rcases eq_or_ne t [] with rfl | hne
+    · rfl
+    · rw [words_of_forall_letter hne hall]
+      simp
+termination_by t.length
+decreasing_by subst_vars; simp only [List.length_append, List.length_cons]; omega
+
+/-- Where the two separators coincide, a shortest recast is the input's words
+joined by spaces. -/
+lemma eq_of_mem_minRecasts (hbn : (blank : α) = newline) {i o : Text α}
+    (ho : o ∈ MinRecasts i) : o = List.intercalate [blank] (words i) := by
+  rw [← words_eq_of_recast (mem_minRecasts_iff.1 ho).1]
+  exact eq_intercalate_words (fun c hc => hc.elim id (·.trans hbn.symm)) o
+    (fun _ _ h => head_not_isSeparator ho h) (fun _ _ h => getLast_not_isSeparator ho h)
+    (fun _ _ _ _ h ha => not_isSeparator_of_adjacent ho h ha)
+
+/-- Where the two separators coincide, `S1` has at most one output. -/
+theorem eq_of_goal_of_blank_eq_newline (hbn : (blank : α) = newline) {M : ℕ}
+    {i o₁ o₂ : Text α} (h₁ : Goal M i o₁) (h₂ : Goal M i o₂) : o₁ = o₂ :=
+  (eq_of_mem_minRecasts hbn (solutions_subset_minRecasts M i h₁)).trans
+    (eq_of_mem_minRecasts hbn (solutions_subset_minRecasts M i h₂)).symm
+
+/-- **`T5` needs two separators.**  "Can there be more than one solution for a
+given input?  ... a clear yes" fails on every alphabet where `space` and
+`new_line` coincide. -/
+theorem blank_ne_newline_of_not_functional
+    (h : ∃ (M : ℕ) (i o₁ o₂ : Text α), Goal M i o₁ ∧ Goal M i o₂ ∧ o₁ ≠ o₂) :
+    (blank : α) ≠ newline := by
+  obtain ⟨_, _, _, _, h₁, h₂, hne⟩ := h
+  exact fun hbn => hne (eq_of_goal_of_blank_eq_newline hbn h₁ h₂)
+
+end Coincide
 
 
 end Meyer.Book

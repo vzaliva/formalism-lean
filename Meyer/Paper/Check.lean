@@ -594,6 +594,29 @@ theorem goal_fill {i : Text α} (hi : i ∈ DomGoal α MAXPOS) :
   rw [goal_iff] at ho ⊢
   exact ⟨fill_mem_trimmed ⟨o, ho.1⟩, le_rfl⟩
 
+/-! ## Where the two separators coincide
+
+Meyer's claim that `goal` is nondeterministic, `goal_not_functional` at `Char`,
+forces `blank` and `new_line` to be two characters.  Where they are one,
+`EQUIVALENT (b)` is `{b}`, so every output is `compact i`.  The 2022 counterpart
+is `Meyer.Book.eq_of_goal_of_blank_eq_newline`. -/
+
+/-- Where the two separators coincide, an input has at most one output. -/
+theorem eq_of_goal_of_blank_eq_newline (hbn : (blank : α) = newline) {i o₁ o₂ : Text α}
+    (h₁ : Goal MAXPOS i o₁) (h₂ : Goal MAXPOS i o₂) : o₁ = o₂ := by
+  have key : ∀ {o}, Goal MAXPOS i o → o = compact i :=
+    fun ho => eq_of_mem_equivalent hbn ((goal_iff i _).1 ho).1.1
+  rw [key h₁, key h₂]
+
+/-- **Meyer's nondeterminism claim needs two separators.**  "There may be more
+than one correct output for a given input" fails on every alphabet where `blank`
+and `new_line` coincide. -/
+theorem blank_ne_newline_of_not_functional
+    (h : ∃ (n : ℕ) (i o₁ o₂ : Text α), Goal n i o₁ ∧ Goal n i o₂ ∧ o₁ ≠ o₂) :
+    (blank : α) ≠ newline := by
+  obtain ⟨_, _, _, _, h₁, h₂, hne⟩ := h
+  exact fun hbn => hne (eq_of_goal_of_blank_eq_newline hbn h₁ h₂)
+
 /-! ## An input of separators only -/
 
 /-- A run of breaks after a kept break is dropped entirely. -/

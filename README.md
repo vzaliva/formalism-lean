@@ -498,7 +498,16 @@ Making the assumptions explicit turns four remarks into checked facts:
   (`recast1_cycle`; the cycle *is* the exchange of the two); `T5` itself, since two
   outputs with the same words can differ only in their separators; and the `M3` defect
   witness, which is `T5`'s input with a third output and inherits both of `T5`'s
-  assumptions. The feasibility
+  assumptions. Neither text states the hypothesis, but each implies it, because each
+  states something that fails where the two coincide. The `M5`/`M6` remark fails on the
+  one-character text `new_line` (`Meyer.Book.blank_ne_newline_of_maxLine_eq`). Both
+  nondeterminism claims fail too, because each specification then has at most one output
+  per input. In 1985 that output is `compact i`
+  (`Meyer.Paper.eq_of_goal_of_blank_eq_newline`). In 2022 it is the words of the input
+  joined by single spaces (`Meyer.Book.eq_of_goal_of_blank_eq_newline`). So the paper's
+  nondeterminism claim and `T5` each imply that the two differ
+  (`Meyer.Paper.blank_ne_newline_of_not_functional`,
+  `Meyer.Book.blank_ne_newline_of_not_functional`). The feasibility
   theorem `T8` appeared to need it, because the original proof went through "no spaces
   are left after `owpl`"; the weaker "what is left that is not a new line was never a
   space" suffices and holds regardless. The native round trip through `render` uses it
@@ -519,7 +528,7 @@ lake exe cache get   # mathlib binaries
 lake build
 ```
 
-A clean build produces no warnings and no `sorry`s. To check what the forty-one
+A clean build produces no warnings and no `sorry`s. To check what the forty-six
 theorems depend on:
 
 ```sh
